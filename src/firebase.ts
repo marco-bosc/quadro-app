@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
+import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { FUNCTIONS_REGION } from '../shared/region';
 
 const env = import.meta.env;
@@ -17,6 +18,7 @@ const app = initializeApp({
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: env.VITE_FIREBASE_PROJECT_ID,
   appId: env.VITE_FIREBASE_APP_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || `${env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
 });
 
 export const auth = getAuth(app);
@@ -44,3 +46,14 @@ export const db = useEmulators
 export const functions = useEmulators
   ? getFunctions(app, `${window.location.origin}/__functions`)
   : getFunctions(app, FUNCTIONS_REGION);
+
+export const storage = getStorage(app);
+
+// Storage passa dal proxy di Vite (/v0 → emulatore Storage). connectStorageEmulator usa http://
+// per tutti gli host tranne Firebase Studio: su una pagina https (Codespaces dal browser)
+// forziamo https, così il browser parla con il proxy sulla stessa origine della pagina.
+if (useEmulators) {
+  const https = window.location.protocol === 'https:';
+  connectStorageEmulator(storage, window.location.hostname, Number(window.location.port) || (https ? 443 : 80));
+  if (https) (storage as unknown as { _protocol: string })._protocol = 'https';
+}

@@ -14,6 +14,8 @@ export function describeError(error: unknown): string {
       // L'SDK aggiunge il codice HTTP in fondo al messaggio ("… [400]"): non serve all'utente.
       return error.message.replace(/\s*\[\d{3}\]$/, '');
     }
+    if (error.code === 'storage/unauthorized') return 'Non hai i permessi per questo file.';
+    if (error.code === 'storage/retry-limit-exceeded') return 'Connessione assente: controlla la rete e riprova.';
     switch (error.code) {
       case 'auth/invalid-credential':
       case 'auth/invalid-email':

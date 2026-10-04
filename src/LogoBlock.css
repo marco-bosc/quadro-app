@@ -1,0 +1,9 @@
+.logo-row { display: flex; align-items: center; gap: var(--sp-16); flex-wrap: wrap; }
+.logo-preview, .logo-placeholder {
+  width: 140px; height: 70px; border-radius: var(--radius-field); background: var(--paper); object-fit: contain;
+}
+.logo-placeholder {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  border: 1.5px dashed var(--line-placeholder); color: var(--text-3); font-size: var(--fs-xs); background: transparent;
+}
+.logo-actions { gap: var(--sp-6); align-items: flex-start; }

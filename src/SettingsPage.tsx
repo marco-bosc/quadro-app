@@ -12,6 +12,7 @@ import { SaveError } from './quotes';
 import { Button } from './ui/Button';
 import { DecimalField } from './ui/DecimalField';
 import { Field, SelectField, TextAreaField } from './ui/Field';
+import { LogoBlock } from './LogoBlock';
 import { NextNumberBlock } from './NextNumberBlock';
 import { SaveBar } from './ui/SaveBar';
 import { useInvalidTracker } from './ui/useInvalidTracker';
@@ -154,6 +155,11 @@ export function SettingsPage({ companyId, email, isOwner, onDirtyChange, onSaved
           </div>
           {profileField('website', 'Sito (facoltativo)')}
           {profileField('signerName', 'Nome di chi firma i preventivi')}
+        </fieldset>
+
+        <LogoBlock companyId={companyId} isOwner={isOwner} />
+
+        <fieldset disabled={!isOwner} className="stack plain-fieldset">
           <p className="muted small">
             Le modifiche valgono per i nuovi preventivi. Quelli già emessi restano come sono stati emessi.
           </p>

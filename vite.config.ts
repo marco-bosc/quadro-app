@@ -9,6 +9,7 @@ import { FUNCTIONS_REGION } from './shared/region';
 // `firebase emulators:exec` passa gli indirizzi degli emulatori nelle variabili d'ambiente.
 const AUTH_EMULATOR = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099'}`;
 const FIRESTORE_EMULATOR = `http://${process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080'}`;
+const STORAGE_EMULATOR = `http://${process.env.FIREBASE_STORAGE_EMULATOR_HOST || '127.0.0.1:9199'}`;
 const FUNCTIONS_EMULATOR = `http://${process.env.FUNCTIONS_EMULATOR_HOST || '127.0.0.1:5001'}`;
 // Le callable nell'emulatore rispondono su /<progetto>/<regione>/<nome>.
 const PROJECT_ID = process.env.GCLOUD_PROJECT || JSON.parse(readFileSync('.firebaserc', 'utf8')).projects.test;
@@ -25,6 +26,7 @@ export default defineConfig({
       '/emulator': AUTH_EMULATOR,
       '/google.firestore.v1.Firestore': FIRESTORE_EMULATOR,
       '/v1/projects': FIRESTORE_EMULATOR,
+      '/v0': STORAGE_EMULATOR,
       '/__functions': {
         target: FUNCTIONS_EMULATOR,
         rewrite: (path) => path.replace(/^\/__functions/, `/${PROJECT_ID}/${FUNCTIONS_REGION}`),

@@ -3,7 +3,7 @@
 Web app per artigiani (prima gli elettricisti): dalla richiesta di preventivo alla gestione delle offerte.
 Istruzioni per l'agente in `CLAUDE.md`; documenti di progetto in `docs/`.
 
-Stato: I01 e I02 chiusi; **I02b in corso** — fatto B1 (emissione e numerazione sul server); da fare B2 (PDF e archiviazione) e B3 (revisioni e interfaccia).
+Stato: I01 e I02 chiusi; **I02b in corso** — fatti B1 (emissione e numerazione) e B2 (PDF e archiviazione); da fare B3 (revisioni e interfaccia).
 
 ## Stack
 
@@ -47,6 +47,7 @@ all'interno del codespace (`vite.config.ts`):
 - `/identitytoolkit.googleapis.com`, `/securetoken.googleapis.com`, `/emulator` → Auth (9099)
 - `/google.firestore.v1.Firestore`, `/v1/projects` → Firestore (8080)
 - `/__functions/<nome>` → Functions (5001), riscritto in `/<progetto>/europe-west1/<nome>`
+- `/v0` → Storage (9199); su una pagina https l'SDK di Storage viene forzato in https verso il proxy (`src/firebase.ts`)
 
 In `src/firebase.ts` Auth e Firestore puntano all'indirizzo della pagina stessa
 (Firestore con HTTPS se la pagina è in HTTPS e long polling forzato). Le porte restano **private**:
@@ -65,11 +66,11 @@ alcune sezioni potrebbero non caricarsi perché l'interfaccia chiama direttament
 |---|---|
 | `npm run dev` | Emulatori (Auth, Firestore, Hosting, UI), seed dei dati fittizi, poi Vite su 0.0.0.0:5173 |
 | `npm run seed` | Ripristina i dati fittizi negli emulatori (richiede `npm run dev` attivo) |
-| `npm test` | Tutti i test Vitest, dentro un emulatore Firestore dedicato (progetto `demo-quadro`) |
-| `npm run test:rules` | Solo i test delle Security Rules |
+| `npm test` | Tutti i test Vitest, su emulatori Firestore e Storage dedicati (progetto `demo-quadro`) |
+| `npm run test:rules` | Solo i test delle Security Rules (Firestore e Storage) |
 | `npm run check` | Lint, typecheck, build e test |
 
-`npm test` usa un emulatore separato (`firebase.test.json`, porta 8180): funziona anche con `npm run dev` acceso.
+`npm test` usa emulatori separati (`firebase.test.json`, porte 8180 e 9189): funziona anche con `npm run dev` acceso.
 
 ## Interfaccia
 
@@ -95,10 +96,18 @@ In `functions/` (pacchetto separato, Node 22). Regione **europe-west1**, dentro 
   assegna il numero (contatore `companies/{id}/counters/quotes-{anno}`, anno nel fuso Europe/Rome), congela l'istantanea
   (`shared/snapshot.ts`) e porta il preventivo a `issued` con `pdfStatus: "pending"`.
 - `setNextQuoteNumber`: solo owner, solo oltre l'ultimo numero emesso dell'anno.
+- Dopo l'emissione `issueQuote` genera il PDF (pdfmake, A4, font Instrument Sans e Bricolage Grotesque in `functions/fonts/`)
+  solo dall'istantanea e lo salva in `companies/{id}/quotes/{quoteId}/Preventivo_2026-001.pdf`. Se fallisce: `pdfStatus: "error"`,
+  il numero resta, e `regenerateQuotePdf` lo rigenera.
+- Il logo (`companies/{id}/branding/logo`, PNG o JPEG fino a 1 MB, solo owner) viene **copiato nella cartella del preventivo**
+  all'emissione: sostituirlo dopo non cambia i PDF già emessi.
+- Bucket di Storage esplicito: `STORAGE_BUCKET` in `functions/.env.quadro-app-test` e `VITE_FIREBASE_STORAGE_BUCKET` in `.env.local`
+  devono coincidere (vedi console Firebase → Storage).
 - Parametro `ALLOW_UNCONFIRMED_VAT_TEXTS`: `true` nel progetto di test (`functions/.env.quadro-app-test`), `false` per default.
   Con `false` non si emettono preventivi che usano codici IVA con diciture `[DA CONFERMARE]`.
 
-La logica è nei moduli (`issue.ts`, `numbering.ts`) e viene testata sull'emulatore Firestore (`tests/functions/`);
+La logica è nei moduli (`issue.ts`, `numbering.ts`, `pdf/`) e viene testata sugli emulatori Firestore e Storage (`tests/functions/`),
+compreso il testo dei PDF (estratto con `pdfjs-dist`; `PDF_DUMP_DIR=/cartella npm test` salva i PDF per controllarli a occhio);
 `index.ts` registra solo le callable. Dopo una modifica alle Functions con `npm run dev` acceso: `npm run build:functions`
 (l'emulatore ricarica il codice compilato).
 
@@ -115,7 +124,7 @@ shared/     codice condiviso tra browser e Functions, senza Firebase né React:
             partita IVA), numbering.ts (numero e data a Roma), snapshot.ts (istantanea), region.ts
 tests/      test delle regole e del salvataggio con controllo di versione
 scripts/    seed degli emulatori
-firestore.rules, firestore.indexes.json, firebase.json, .firebaserc
+firestore.rules, storage.rules, firestore.indexes.json, firebase.json, .firebaserc
 ```
 
 ## Modello dati
