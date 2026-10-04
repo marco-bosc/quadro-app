@@ -1,8 +1,17 @@
 // Modello della bozza di preventivo e delle impostazioni dell'azienda: tipi, limiti, validazione.
 // I limiti dei campi di primo livello devono restare allineati a firestore.rules.
 
+import { EMPTY_PROFILE, validateProfile, type CompanyProfile } from './company';
 import { DECIMALS, formatDecimalInput } from './money';
-import { allowedVatCodes, isTaxRegime, isVatCode, isVatCodeAllowed, type TaxRegime, type VatCode } from './vat';
+import {
+  allowedVatCodes,
+  effectiveVatCode,
+  isTaxRegime,
+  isVatCode,
+  isVatCodeAllowed,
+  type TaxRegime,
+  type VatCode,
+} from './vat';
 
 export const LIMITS = {
   title: 200,
@@ -83,7 +92,8 @@ export interface QuoteContent {
   sections: QuoteSection[];
 }
 
-export interface CompanySettings {
+/** Impostazioni dell'azienda: dati di intestazione (CompanyProfile) e valori predefiniti dei preventivi. */
+export interface CompanySettings extends CompanyProfile {
   taxRegime: TaxRegime;
   defaultVatCode: VatCode;
   /** Tariffa oraria in decimillesimi di euro, oppure null se non impostata. */
@@ -93,6 +103,7 @@ export interface CompanySettings {
 }
 
 export const DEFAULT_SETTINGS: CompanySettings = {
+  ...EMPTY_PROFILE,
   taxRegime: 'ordinary',
   defaultVatCode: 'VAT22',
   hourlyRate: null,
@@ -220,6 +231,14 @@ export function parseSettings(data: unknown): CompanySettings {
   const taxRegime = isTaxRegime(v.taxRegime) ? v.taxRegime : DEFAULT_SETTINGS.taxRegime;
   const vat = isVatCode(v.defaultVatCode) ? v.defaultVatCode : DEFAULT_SETTINGS.defaultVatCode;
   return {
+    legalName: str(v.legalName),
+    vatNumber: str(v.vatNumber),
+    taxCode: str(v.taxCode),
+    address: str(v.address),
+    phone: str(v.phone),
+    email: str(v.email),
+    website: str(v.website),
+    signerName: str(v.signerName),
     taxRegime,
     defaultVatCode: isVatCodeAllowed(vat, taxRegime) ? vat : allowedVatCodes(taxRegime)[0],
     hourlyRate: intOrNull(v.hourlyRate),
@@ -323,7 +342,7 @@ export function validateQuoteContent(content: QuoteContent, regime: TaxRegime): 
 }
 
 export function validateSettings(settings: CompanySettings): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationIssue[] = validateProfile(settings).map((i) => ({ path: i.field, message: i.message }));
   if (!isTaxRegime(settings.taxRegime)) issues.push({ path: 'taxRegime', message: 'Regime fiscale non valido.' });
   if (!isVatCode(settings.defaultVatCode) || !isVatCodeAllowed(settings.defaultVatCode, settings.taxRegime)) {
     issues.push({ path: 'defaultVatCode', message: 'Aliquota predefinita non ammessa per il regime fiscale.' });
@@ -338,4 +357,29 @@ export function validateSettings(settings: CompanySettings): ValidationIssue[] {
     'Condizioni di pagamento',
   );
   return issues;
+}
+
+/**
+ * Adatta i codici IVA al regime attuale dell'azienda (es. dopo un cambio di regime).
+ * `changed` indica se qualcosa è cambiato: l'interfaccia lo segnala e la modifica vale solo dopo il salvataggio.
+ * Lo usa anche il server all'emissione, così l'istantanea è coerente con il regime.
+ */
+export function normalizeVatCodes(
+  content: QuoteContent,
+  regime: TaxRegime,
+  companyDefault: VatCode,
+): { content: QuoteContent; changed: boolean } {
+  const fallback = regime === 'flat_rate' ? 'FORF' : companyDefault === 'FORF' ? 'VAT22' : companyDefault;
+  const defaultVatCode = effectiveVatCode(content.defaultVatCode, regime, fallback);
+  let changed = defaultVatCode !== content.defaultVatCode;
+  const sections = content.sections.map((s) => ({
+    ...s,
+    lines: s.lines.map((l) => {
+      const vatCode = effectiveVatCode(l.vatCode, regime, defaultVatCode);
+      if (vatCode === l.vatCode) return l;
+      changed = true;
+      return { ...l, vatCode };
+    }),
+  }));
+  return { content: changed ? { ...content, defaultVatCode, sections } : content, changed };
 }

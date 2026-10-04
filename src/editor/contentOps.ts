@@ -10,7 +10,6 @@ import {
   type QuoteLine,
   type QuoteSection,
 } from '../../shared/quote';
-import { effectiveVatCode, type TaxRegime, type VatCode } from '../../shared/vat';
 
 function move<T>(items: T[], index: number, delta: -1 | 1): T[] {
   const target = index + delta;
@@ -109,26 +108,4 @@ export function deleteLine(content: QuoteContent, sectionId: string, lineId: str
   return mapSection(content, sectionId, (s) => ({ ...s, lines: s.lines.filter((l) => l.id !== lineId) }));
 }
 
-/**
- * Adatta i codici IVA al regime attuale dell'azienda (es. dopo un cambio di regime).
- * `changed` indica se qualcosa è cambiato: l'interfaccia lo segnala e la modifica vale solo dopo il salvataggio.
- */
-export function normalizeVatCodes(
-  content: QuoteContent,
-  regime: TaxRegime,
-  companyDefault: VatCode,
-): { content: QuoteContent; changed: boolean } {
-  const fallback = regime === 'flat_rate' ? 'FORF' : companyDefault === 'FORF' ? 'VAT22' : companyDefault;
-  const defaultVatCode = effectiveVatCode(content.defaultVatCode, regime, fallback);
-  let changed = defaultVatCode !== content.defaultVatCode;
-  const sections = content.sections.map((s) => ({
-    ...s,
-    lines: s.lines.map((l) => {
-      const vatCode = effectiveVatCode(l.vatCode, regime, defaultVatCode);
-      if (vatCode === l.vatCode) return l;
-      changed = true;
-      return { ...l, vatCode };
-    }),
-  }));
-  return { content: changed ? { ...content, defaultVatCode, sections } : content, changed };
-}
+export { normalizeVatCodes } from '../../shared/quote';

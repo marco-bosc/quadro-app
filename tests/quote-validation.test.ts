@@ -1,3 +1,4 @@
+import { EMPTY_PROFILE } from '../shared/company';
 import { describe, expect, it } from 'vitest';
 import {
   createLine,
@@ -14,6 +15,7 @@ import {
 } from '../shared/quote';
 
 const settings: CompanySettings = {
+  ...EMPTY_PROFILE,
   taxRegime: 'ordinary',
   defaultVatCode: 'VAT10',
   hourlyRate: 320_000,
