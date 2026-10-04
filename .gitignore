@@ -1,0 +1,24 @@
+# Dipendenze e build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Configurazione locale e segreti
+.env
+.env.*
+!.env.example
+*-service-account*.json
+serviceAccount*.json
+
+# Firebase / emulatori
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+database-debug.log*
+emulator-data/
+
+# Varie
+npm-debug.log*
+.DS_Store
+coverage/
