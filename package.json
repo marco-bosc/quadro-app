@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "firebase emulators:exec --project test --ui \"vite --host 0.0.0.0\"",
+    "dev": "firebase emulators:exec --project test --ui \"tsx scripts/seed.ts && vite --host 0.0.0.0\"",
     "seed": "tsx scripts/seed.ts",
     "lint": "eslint .",
     "typecheck": "tsc -b",

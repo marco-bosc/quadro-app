@@ -17,16 +17,10 @@ Il devcontainer installa Node 22, Java 21 e `firebase-tools`.
 ```bash
 npm install
 cp .env.example .env.local     # solo la prima volta; i valori fittizi vanno bene per gli emulatori
-npm run dev                    # emulatori Auth, Firestore, Hosting + interfaccia emulatori + Vite
+npm run dev                    # emulatori + dati fittizi (seed automatico) + Vite
 ```
 
-In un **secondo terminale**, con `npm run dev` attivo:
-
-```bash
-npm run seed                   # crea aziende, utenti e bozze di esempio negli emulatori
-```
-
-Poi apri la porta **5173** dalla scheda **Porte** di VS Code (icona del globo).
+Aspetta la riga `VITE … ready`, poi apri la porta **5173** dalla scheda **Porte** di VS Code (icona del globo).
 
 Utenti fittizi (solo emulatori):
 
@@ -35,7 +29,10 @@ Utenti fittizi (solo emulatori):
 | Elettrica Rossi | `rossi@example.test` | `quadro-demo` |
 | Impianti Bianchi | `bianchi@example.test` | `quadro-demo` |
 
-I dati degli emulatori **si azzerano a ogni riavvio** di `npm run dev`: rilancia `npm run seed`.
+I dati degli emulatori **si azzerano a ogni riavvio** di `npm run dev` (anche quando il codespace va in pausa);
+`npm run dev` li ricrea in automatico. Se il login risponde «Email o password non corretti» con gli utenti sopra,
+controlla che nel terminale di `npm run dev` compaiano le righe `✓ Elettrica Rossi …`.
+Per ripristinare i dati di esempio senza riavviare: `npm run seed` in un secondo terminale.
 Il seed può mostrare un avviso `MetadataLookupWarning`: è innocuo (l'SDK cerca un ambiente Google Cloud che qui non c'è).
 
 ### Come l'app raggiunge gli emulatori (Codespaces dal browser)
@@ -65,8 +62,8 @@ alcune sezioni potrebbero non caricarsi perché l'interfaccia chiama direttament
 
 | Script | Cosa fa |
 |---|---|
-| `npm run dev` | Emulatori (Auth, Firestore, Hosting, UI) + Vite su 0.0.0.0:5173 |
-| `npm run seed` | Dati fittizi negli emulatori (richiede `npm run dev` attivo) |
+| `npm run dev` | Emulatori (Auth, Firestore, Hosting, UI), seed dei dati fittizi, poi Vite su 0.0.0.0:5173 |
+| `npm run seed` | Ripristina i dati fittizi negli emulatori (richiede `npm run dev` attivo) |
 | `npm test` | Tutti i test Vitest, dentro un emulatore Firestore dedicato (progetto `demo-quadro`) |
 | `npm run test:rules` | Solo i test delle Security Rules |
 | `npm run check` | Lint, typecheck, build e test |
