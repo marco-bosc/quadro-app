@@ -57,8 +57,6 @@
         "node_modules",
         ".git",
         "*.log",
-        "src",
-        "tsconfig.json",
         "test-support"
       ],
       "predeploy": [

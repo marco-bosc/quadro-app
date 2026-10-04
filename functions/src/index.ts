@@ -14,6 +14,14 @@ import { generateQuotePdf, regenerateQuotePdfHandler } from './pdf/generate';
 import { discardRevisionHandler, startRevisionHandler } from './revisions';
 
 initializeApp();
+
+/**
+ * Le callable devono essere raggiungibili da internet a livello di Cloud Run: l'accesso vero è controllato
+ * dentro ogni funzione (utente Firebase autenticato + membership dell'azienda). Esplicito, così anche un
+ * aggiornamento imposta il permesso, non solo la prima creazione.
+ */
+const CALLABLE = { invoker: 'public' as const };
+const PDF_CALLABLE = { ...CALLABLE, memory: '512MiB' as const, timeoutSeconds: 120 };
 // maxInstances limita i costi in caso di traffico anomalo.
 setGlobalOptions({ region: FUNCTIONS_REGION, maxInstances: 5 });
 
@@ -43,7 +51,7 @@ function pdfDeps() {
 }
 
 /** Emette il preventivo, poi genera il PDF. Se il PDF fallisce il numero resta: pdfStatus "error" e si può rigenerare. */
-export const issueQuote = onCall({ memory: '512MiB', timeoutSeconds: 120 }, (request) =>
+export const issueQuote = onCall(PDF_CALLABLE, (request) =>
   guarded('issueQuote', async () => {
     const uid = requireAuth(request);
     const deps = { ...pdfDeps(), now: () => new Date(), allowUnconfirmedVatTexts: allowUnconfirmedVatTexts.value() };
@@ -54,20 +62,20 @@ export const issueQuote = onCall({ memory: '512MiB', timeoutSeconds: 120 }, (req
   }),
 );
 
-export const regenerateQuotePdf = onCall({ memory: '512MiB', timeoutSeconds: 120 }, (request) =>
+export const regenerateQuotePdf = onCall(PDF_CALLABLE, (request) =>
   guarded('regenerateQuotePdf', () => regenerateQuotePdfHandler(pdfDeps(), requireAuth(request), request.data)),
 );
 
-export const setNextQuoteNumber = onCall((request) =>
+export const setNextQuoteNumber = onCall(CALLABLE, (request) =>
   guarded('setNextQuoteNumber', () =>
     setNextQuoteNumberHandler({ db: getFirestore(), now: () => new Date() }, requireAuth(request), request.data),
   ),
 );
 
-export const startRevision = onCall((request) =>
+export const startRevision = onCall(CALLABLE, (request) =>
   guarded('startRevision', () => startRevisionHandler({ db: getFirestore() }, requireAuth(request), request.data)),
 );
 
-export const discardRevision = onCall((request) =>
+export const discardRevision = onCall(CALLABLE, (request) =>
   guarded('discardRevision', () => discardRevisionHandler({ db: getFirestore() }, requireAuth(request), request.data)),
 );
