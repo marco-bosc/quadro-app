@@ -1,7 +1,7 @@
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { serverTimestamp, Timestamp } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
-import { createTestEnv, seedTwoCompanies } from '../helpers';
+import { createTestEnv, emptyQuoteContent, seedTwoCompanies } from '../helpers';
 
 let env: RulesTestEnvironment;
 
@@ -23,8 +23,31 @@ const anonymous = () => env.unauthenticatedContext().firestore();
 
 function newQuote(createdBy: string) {
   return {
+    ...emptyQuoteContent(),
     title: 'Quadro elettrico',
     notes: 'Sostituzione differenziale',
+    customer: { name: 'Mario Verdi', siteAddress: 'Via Roma 1, Torino', contact: '333 0000000' },
+    finalDiscountCents: 1_000,
+    sections: [
+      {
+        id: 's1',
+        title: 'Quadro',
+        lines: [
+          {
+            id: 'l1',
+            type: 'material',
+            description: 'Differenziale',
+            itemCode: '',
+            unit: 'pz',
+            quantityMilli: 1000,
+            unitPriceTenThousandths: null,
+            discountBp: 0,
+            vatCode: 'VAT22',
+            optional: false,
+          },
+        ],
+      },
+    ],
     status: 'draft',
     version: 1,
     createdBy,
@@ -179,5 +202,104 @@ describe('validazione della bozza', () => {
     const qA = () => userA().doc('companies/A/quotes/qA');
     await assertFails(qA().update({ createdBy: 'altro', version: 2, updatedAt: serverTimestamp() }));
     await assertFails(qA().update({ createdAt: serverTimestamp(), version: 2, updatedAt: serverTimestamp() }));
+  });
+});
+
+describe('validazione dei campi di I02', () => {
+  const ref = () => userA().doc('companies/A/quotes/nuova');
+
+  it('accetta una bozza completa di cliente, sezioni e righe', async () => {
+    await assertSucceeds(ref().set(newQuote('userA')));
+  });
+
+  it('rifiuta valori fuori dagli elenchi ammessi', async () => {
+    await assertFails(ref().set({ ...newQuote('userA'), defaultVatCode: 'VAT4' }));
+    await assertFails(ref().set({ ...newQuote('userA'), pdfDetail: 'tutto' }));
+  });
+
+  it('rifiuta sconto finale negativo, decimale o di tipo sbagliato', async () => {
+    await assertFails(ref().set({ ...newQuote('userA'), finalDiscountCents: -1 }));
+    await assertFails(ref().set({ ...newQuote('userA'), finalDiscountCents: 10.5 }));
+    await assertFails(ref().set({ ...newQuote('userA'), finalDiscountCents: '100' }));
+    await assertSucceeds(ref().set({ ...newQuote('userA'), finalDiscountCents: null }));
+  });
+
+  it('rifiuta un cliente con campi mancanti, extra o troppo lunghi', async () => {
+    const base = newQuote('userA');
+    await assertFails(ref().set({ ...base, customer: { name: 'X', siteAddress: '' } }));
+    await assertFails(ref().set({ ...base, customer: { ...base.customer, taxCode: 'ABC' } }));
+    await assertFails(ref().set({ ...base, customer: { ...base.customer, siteAddress: 'x'.repeat(301) } }));
+  });
+
+  it('rifiuta testi troppo lunghi e sezioni oltre il limite', async () => {
+    const base = newQuote('userA');
+    await assertFails(ref().set({ ...base, validityText: 'x'.repeat(501) }));
+    await assertFails(ref().set({ ...base, paymentTermsText: 'x'.repeat(1001) }));
+    await assertFails(ref().set({ ...base, sections: Array.from({ length: 31 }, (_, i) => ({ id: `s${i}`, title: '', lines: [] })) }));
+    await assertFails(ref().set({ ...base, sections: 'nessuna' }));
+  });
+
+  it('rifiuta una bozza senza i campi nuovi (formato I01)', async () => {
+    await assertFails(
+      ref().set({
+        title: 'Vecchio formato',
+        notes: '',
+        status: 'draft',
+        version: 1,
+        createdBy: 'userA',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+});
+
+describe('impostazioni dell’azienda', () => {
+  const settings = (over: Record<string, unknown> = {}) => ({
+    taxRegime: 'ordinary',
+    defaultVatCode: 'VAT22',
+    hourlyRate: 320_000,
+    defaultValidityText: '30 giorni',
+    defaultPaymentTermsText: 'Bonifico',
+    version: 1,
+    ...over,
+  });
+
+  it('l’owner modifica le impostazioni, con versione crescente', async () => {
+    const company = () => userA().doc('companies/A');
+    await assertSucceeds(company().update({ settings: settings() }));
+    await assertFails(company().update({ settings: settings({ version: 1 }) })); // versione non aggiornata
+    await assertSucceeds(company().update({ settings: settings({ version: 2, hourlyRate: null }) }));
+  });
+
+  it('un membro non owner non può modificarle, ma può leggerle', async () => {
+    const db = env.authenticatedContext('memberA').firestore();
+    await assertFails(db.doc('companies/A').update({ settings: settings() }));
+    await assertSucceeds(db.doc('companies/A').get());
+  });
+
+  it('l’utente A non modifica le impostazioni di B', async () => {
+    await assertFails(userA().doc('companies/B').update({ settings: settings() }));
+  });
+
+  it('non si possono cambiare altri campi dell’azienda insieme alle impostazioni', async () => {
+    await assertFails(userA().doc('companies/A').update({ settings: settings(), name: 'Altro' }));
+  });
+
+  it('rifiuta impostazioni non valide', async () => {
+    const company = () => userA().doc('companies/A');
+    await assertFails(company().update({ settings: settings({ taxRegime: 'misto' }) }));
+    await assertFails(company().update({ settings: settings({ taxRegime: 'flat_rate', defaultVatCode: 'VAT22' }) }));
+    await assertFails(company().update({ settings: settings({ defaultVatCode: 'FORF' }) }));
+    await assertFails(company().update({ settings: settings({ hourlyRate: -1 }) }));
+    await assertFails(company().update({ settings: settings({ hourlyRate: 32.5 }) }));
+    await assertFails(company().update({ settings: settings({ defaultValidityText: 'x'.repeat(501) }) }));
+    await assertFails(company().update({ settings: settings({ extra: true }) }));
+    await assertSucceeds(company().update({ settings: settings({ taxRegime: 'flat_rate', defaultVatCode: 'FORF' }) }));
+  });
+
+  it('nessuno crea o cancella aziende dal client', async () => {
+    await assertFails(userA().doc('companies/Nuova').set({ name: 'Nuova', createdAt: Timestamp.now() }));
+    await assertFails(userA().doc('companies/A').delete());
   });
 });

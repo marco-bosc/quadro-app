@@ -2,6 +2,10 @@ rules_version = '2';
 
 // Ogni dato appartiene a un'azienda. L'accesso passa sempre da memberships/{uid},
 // che solo gli script di amministrazione possono scrivere.
+//
+// Limiti allineati a shared/quote.ts (LIMITS). Le regole non hanno cicli: i campi
+// dentro le singole righe di `sections` sono validati dal modulo condiviso prima del
+// salvataggio e saranno rivalidati dal server all'emissione (I02b).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -9,17 +13,79 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isMember(companyId) {
-      return signedIn()
-        && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.companyId == companyId;
+    function membership() {
+      return get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data;
     }
 
-    // Limiti allineati a shared/quote.ts
+    function isMember(companyId) {
+      return signedIn() && membership().companyId == companyId;
+    }
+
+    function isOwner(companyId) {
+      return isMember(companyId) && membership().role == 'owner';
+    }
+
+    function isText(value, max) {
+      return value is string && value.size() <= max;
+    }
+
+    function isIntInRange(value, max) {
+      return value is int && value >= 0 && value <= max;
+    }
+
+    function isVatCode(value) {
+      return value in ['VAT22', 'VAT10', 'RC_ATER', 'RC_A', 'FORF'];
+    }
+
+    // ---------- Impostazioni dell'azienda ----------
+
+    function validSettings(s) {
+      return s is map
+        && s.keys().hasOnly(['taxRegime', 'defaultVatCode', 'hourlyRate', 'defaultValidityText', 'defaultPaymentTermsText', 'version'])
+        && s.keys().hasAll(['taxRegime', 'defaultVatCode', 'hourlyRate', 'defaultValidityText', 'defaultPaymentTermsText', 'version'])
+        && s.taxRegime in ['ordinary', 'flat_rate']
+        && isVatCode(s.defaultVatCode)
+        && ((s.taxRegime == 'flat_rate') == (s.defaultVatCode == 'FORF'))
+        && (s.hourlyRate == null || isIntInRange(s.hourlyRate, 9999999999))
+        && isText(s.defaultValidityText, 500)
+        && isText(s.defaultPaymentTermsText, 1000)
+        && s.version is int;
+    }
+
+    // Controllo di versione anche sulle impostazioni: si parte da 1, poi +1 a ogni salvataggio.
+    function validSettingsVersion() {
+      return resource.data.get('settings', null) == null
+        ? request.resource.data.settings.version == 1
+        : request.resource.data.settings.version == resource.data.settings.version + 1;
+    }
+
+    // ---------- Bozza del preventivo ----------
+
+    function validCustomer(c) {
+      return c is map
+        && c.keys().hasOnly(['name', 'siteAddress', 'contact'])
+        && c.keys().hasAll(['name', 'siteAddress', 'contact'])
+        && isText(c.name, 200)
+        && isText(c.siteAddress, 300)
+        && isText(c.contact, 200);
+    }
+
     function validQuoteFields(data) {
-      return data.keys().hasOnly(['title', 'notes', 'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
-        && data.keys().hasAll(['title', 'notes', 'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
-        && data.title is string && data.title.size() <= 200
-        && data.notes is string && data.notes.size() <= 5000
+      return data.keys().hasOnly(['title', 'notes', 'customer', 'validityText', 'paymentTermsText', 'defaultVatCode',
+                                  'finalDiscountCents', 'pdfDetail', 'sections',
+                                  'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['title', 'notes', 'customer', 'validityText', 'paymentTermsText', 'defaultVatCode',
+                               'finalDiscountCents', 'pdfDetail', 'sections',
+                               'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
+        && isText(data.title, 200)
+        && isText(data.notes, 5000)
+        && validCustomer(data.customer)
+        && isText(data.validityText, 500)
+        && isText(data.paymentTermsText, 1000)
+        && isVatCode(data.defaultVatCode)
+        && (data.finalDiscountCents == null || isIntInRange(data.finalDiscountCents, 999999999999))
+        && data.pdfDetail in ['lines', 'sections', 'total']
+        && data.sections is list && data.sections.size() <= 30
         && data.status == 'draft'
         && data.version is int
         && data.createdBy is string
@@ -34,7 +100,12 @@ service cloud.firestore {
 
     match /companies/{companyId} {
       allow read: if isMember(companyId);
-      allow write: if false;
+      allow create, delete: if false;
+      // Il client può modificare solo le impostazioni, e solo il ruolo owner.
+      allow update: if isOwner(companyId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['settings'])
+        && validSettings(request.resource.data.settings)
+        && validSettingsVersion();
 
       match /quotes/{quoteId} {
         allow read: if isMember(companyId);

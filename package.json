@@ -9,8 +9,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
-    "test": "firebase emulators:exec --project demo-quadro --only firestore \"vitest run\"",
-    "test:rules": "firebase emulators:exec --project demo-quadro --only firestore \"vitest run tests/rules\"",
+    "test": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore \"vitest run\"",
+    "test:rules": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore \"vitest run tests/rules\"",
     "check": "npm run lint && npm run typecheck && npm run build && npm run test"
   },
   "dependencies": {

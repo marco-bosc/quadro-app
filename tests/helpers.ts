@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { Timestamp } from 'firebase/firestore';
+import { createQuoteContent, DEFAULT_SETTINGS, type QuoteContent } from '../shared/quote';
 
 export const PROJECT_ID = 'demo-quadro';
 
@@ -27,9 +28,11 @@ export async function seedTwoCompanies(env: RulesTestEnvironment) {
     await db.doc('companies/B').set({ name: 'Impianti Bianchi', createdAt: now });
     await db.doc('memberships/userA').set({ companyId: 'A', role: 'owner', createdAt: now });
     await db.doc('memberships/userB').set({ companyId: 'B', role: 'owner', createdAt: now });
+    // Membro di A senza ruolo owner (non previsto nel pilota, serve a provare le regole).
+    await db.doc('memberships/memberA').set({ companyId: 'A', role: 'member', createdAt: now });
     const quote = (createdBy: string) => ({
+      ...emptyQuoteContent(),
       title: 'Bozza',
-      notes: '',
       status: 'draft',
       version: 1,
       createdBy,
@@ -39,4 +42,9 @@ export async function seedTwoCompanies(env: RulesTestEnvironment) {
     await db.doc('companies/A/quotes/qA').set(quote('userA'));
     await db.doc('companies/B/quotes/qB').set(quote('userB'));
   });
+}
+
+/** Contenuto di una bozza vuota con i campi di I02. */
+export function emptyQuoteContent(): QuoteContent {
+  return createQuoteContent(DEFAULT_SETTINGS);
 }
