@@ -1,0 +1,11 @@
+.savebar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding: var(--sp-12) var(--gutter) calc(var(--sp-12) + var(--safe-bottom));
+}
+.savebar-inner { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-8); }
+.savebar-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
+.savebar-status { font-size: var(--fs-sm); font-weight: 600; color: var(--text-3); min-width: 0; }
+.savebar-status.warning { color: var(--warning); }
+.savebar .btn-primary { flex-shrink: 0; }
+.savebar.above-nav { bottom: calc(var(--nav-height) + var(--safe-bottom)); padding-bottom: var(--sp-12); }

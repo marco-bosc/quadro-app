@@ -1,0 +1,82 @@
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.35;
+}
+
+h1, h2, h3 { font-family: var(--font-display); margin: 0; }
+h1 { font-size: var(--fs-display); font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
+h2 { font-size: var(--fs-h2); font-weight: 700; line-height: 1.2; }
+p { margin: 0; }
+
+a { color: var(--accent); font-weight: 600; text-decoration: none; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--sp-22) var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-24);
+}
+
+/* Spazio per la barra fissa in basso (navigazione o barra azioni). */
+.page.with-bottom-bar { padding-bottom: calc(var(--nav-height) + 120px + var(--safe-bottom)); }
+
+.stack { display: flex; flex-direction: column; gap: var(--sp-16); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
+.muted { color: var(--text-3); }
+.small { font-size: var(--fs-xs); }
+.num { font-variant-numeric: tabular-nums; }
+.warning { color: var(--warning); }
+
+.group-label {
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--text-3);
+}
+
+.notice {
+  border: 1.5px solid var(--warning);
+  border-radius: var(--radius);
+  padding: var(--sp-12) var(--sp-14);
+  color: var(--warning);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+  align-items: flex-start;
+}
+.notice.info { border-color: var(--accent); color: var(--ink); }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.placeholder-legend {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* Dato mancante (DESIGN §5.2): mai uno zero al suo posto. */
+.missing {
+  color: var(--warning); font-weight: 700; font-style: normal;
+  text-decoration: underline dashed; text-underline-offset: 3px;
+}
+
+.plain-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }

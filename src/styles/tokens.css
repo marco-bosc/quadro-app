@@ -1,0 +1,63 @@
+/* Token di DESIGN.md §2 — unico punto per colori, font e misure. */
+
+@font-face { font-family: 'Bricolage Grotesque'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/bricolage-grotesque-latin-700.woff2') format('woff2'); }
+@font-face { font-family: 'Bricolage Grotesque'; font-weight: 800; font-style: normal; font-display: swap; src: url('/fonts/bricolage-grotesque-latin-800.woff2') format('woff2'); }
+@font-face { font-family: 'Instrument Sans'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/instrument-sans-latin-400.woff2') format('woff2'); }
+@font-face { font-family: 'Instrument Sans'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/instrument-sans-latin-500.woff2') format('woff2'); }
+@font-face { font-family: 'Instrument Sans'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/instrument-sans-latin-600.woff2') format('woff2'); }
+@font-face { font-family: 'Instrument Sans'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/instrument-sans-latin-700.woff2') format('woff2'); }
+
+:root {
+  /* Colori */
+  --bg: #f4f1ea;
+  --surface: #fffdf8;
+  --surface-sunken: #e9e4d8;
+  --paper: #ffffff;
+  --ink: #1b2433;
+  --text-2: #3d4555;
+  --text-3: #5a6170;
+  --line: #d9d3c6;
+  --line-field: #cfc8b9;
+  --line-placeholder: #a9a291;
+  --accent: #1f3f99;
+  --accent-hover: #142b6b;
+  --warning: #a8460c;
+
+  /* Font */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', system-ui, sans-serif;
+
+  /* Dimensioni del testo */
+  --fs-display: 34px;
+  --fs-title: 30px;
+  --fs-h2: 21px;
+  --fs-body-lg: 17px;
+  --fs-body: 16px;
+  --fs-sm: 15px;
+  --fs-xs: 13px;
+  --fs-label: 12px;
+
+  /* Spaziatura */
+  --sp-4: 4px;
+  --sp-6: 6px;
+  --sp-8: 8px;
+  --sp-10: 10px;
+  --sp-12: 12px;
+  --sp-14: 14px;
+  --sp-16: 16px;
+  --sp-18: 18px;
+  --sp-22: 22px;
+  --sp-24: 24px;
+  --sp-28: 28px;
+  --gutter: 22px;
+
+  /* Raggi */
+  --radius-field: 10px;
+  --radius: 12px;
+  --radius-pill: 999px;
+  --radius-sheet: 4px;
+
+  /* Barre fisse */
+  --nav-height: 68px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

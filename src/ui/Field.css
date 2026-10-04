@@ -1,0 +1,13 @@
+.field { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.field-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.field-input {
+  min-height: 50px; width: 100%; padding: 0 var(--sp-14);
+  border: 1px solid var(--line-field); border-radius: var(--radius-field);
+  background: var(--surface); font-size: var(--fs-body); color: var(--ink);
+}
+textarea.field-input { padding: var(--sp-12) var(--sp-14); resize: vertical; line-height: 1.4; }
+select.field-input { appearance: auto; }
+.field-input.num { font-variant-numeric: tabular-nums; }
+.field.invalid .field-input { border-color: var(--warning); border-width: 1.5px; }
+.field-error { color: var(--warning); font-size: var(--fs-xs); font-weight: 600; }
+.field-hint { color: var(--text-3); font-size: var(--fs-xs); }
