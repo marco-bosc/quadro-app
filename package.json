@@ -4,14 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "firebase emulators:exec --project test --ui \"tsx scripts/seed.ts && vite --host 0.0.0.0\"",
+    "postinstall": "npm --prefix functions install",
+    "dev": "npm run build:functions && firebase emulators:exec --project test --ui \"tsx scripts/seed.ts && vite --host 0.0.0.0\"",
     "seed": "tsx scripts/seed.ts",
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
+    "build:functions": "npm --prefix functions run build",
     "test": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore \"vitest run\"",
     "test:rules": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore \"vitest run tests/rules\"",
-    "check": "npm run lint && npm run typecheck && npm run build && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run build && npm run build:functions && npm run test"
   },
   "dependencies": {
     "firebase": "^12.19.0",

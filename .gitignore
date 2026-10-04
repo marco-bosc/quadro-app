@@ -22,3 +22,5 @@ emulator-data/
 npm-debug.log*
 .DS_Store
 coverage/
+# Parametri non segreti delle Functions per progetto (versionati)
+!functions/.env.quadro-app-test
