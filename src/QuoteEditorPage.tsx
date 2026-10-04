@@ -1,5 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { QUOTE_NOTES_MAX, QUOTE_TITLE_MAX, validateQuoteDraft, type QuoteDraftInput } from '../shared/quote';
+import {
+  createQuoteContent,
+  QUOTE_NOTES_MAX,
+  QUOTE_TITLE_MAX,
+  validateQuoteContent,
+  type CompanySettings,
+  type QuoteContent,
+} from '../shared/quote';
 import { describeError } from './errors';
 import { db } from './firebase';
 import { formatDateTime, formatTime } from './format';
@@ -8,6 +15,7 @@ import { createQuote, getQuote, saveQuote, SaveError } from './quotes';
 interface Props {
   companyId: string;
   uid: string;
+  settings: CompanySettings;
   /** null = nuova bozza non ancora salvata */
   quoteId: string | null;
   onDirtyChange: (dirty: boolean) => void;
@@ -16,22 +24,23 @@ interface Props {
 
 type Message = { kind: 'success' | 'error' | 'conflict'; text: string };
 
-const EMPTY: QuoteDraftInput = { title: '', notes: '' };
-
-export function QuoteEditorPage({ companyId, uid, quoteId: initialId, onDirtyChange, onCreated }: Props) {
+// In I02-A l'editor modifica ancora solo titolo e note; gli altri campi del contenuto
+// vengono conservati così come sono. L'editor completo arriva in I02-B.
+export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, onDirtyChange, onCreated }: Props) {
+  const regime = settings.taxRegime;
   const [quoteId, setQuoteId] = useState(initialId);
   const [loading, setLoading] = useState(initialId !== null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [version, setVersion] = useState<number | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   // Ultima versione confermata dal server, e ciò che l'utente sta scrivendo.
-  const [saved, setSaved] = useState<QuoteDraftInput>(EMPTY);
-  const [draft, setDraft] = useState<QuoteDraftInput>(EMPTY);
+  const [saved, setSaved] = useState<QuoteContent>(() => createQuoteContent(settings));
+  const [draft, setDraft] = useState<QuoteContent>(saved);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
   const dirty = draft.title !== saved.title || draft.notes !== saved.notes;
-  const validationErrors = validateQuoteDraft(draft);
+  const validationErrors = validateQuoteContent(draft, regime).map((issue) => issue.message);
 
   const load = async (id: string) => {
     setLoading(true);
@@ -41,9 +50,8 @@ export function QuoteEditorPage({ companyId, uid, quoteId: initialId, onDirtyCha
       if (!quote) {
         setLoadError('Bozza non trovata.');
       } else {
-        const values = { title: quote.title, notes: quote.notes };
-        setSaved(values);
-        setDraft(values);
+        setSaved(quote.content);
+        setDraft(quote.content);
         setVersion(quote.version);
         setUpdatedAt(quote.updatedAt);
         setMessage(null);
@@ -85,12 +93,12 @@ export function QuoteEditorPage({ companyId, uid, quoteId: initialId, onDirtyCha
     setMessage(null);
     try {
       if (quoteId === null) {
-        const created = await createQuote(db, companyId, uid, submitted);
+        const created = await createQuote(db, companyId, uid, submitted, regime);
         setQuoteId(created.id);
         setVersion(created.version);
         onCreated(created.id);
       } else {
-        setVersion(await saveQuote(db, companyId, quoteId, version ?? 0, submitted));
+        setVersion(await saveQuote(db, companyId, quoteId, version ?? 0, submitted, regime));
       }
       // Solo dopo la conferma del server il testo inviato diventa "salvato".
       setSaved(submitted);

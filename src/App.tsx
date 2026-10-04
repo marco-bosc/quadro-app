@@ -1,11 +1,13 @@
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import type { CompanySettings } from '../shared/quote';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { describeError } from './errors';
 import { auth, db } from './firebase';
 import { LoginPage } from './LoginPage';
 import { QuoteEditorPage } from './QuoteEditorPage';
 import { QuoteListPage } from './QuoteListPage';
+import { getCompany } from './settings';
 
 type Route = { name: 'list' } | { name: 'new' } | { name: 'edit'; id: string };
 
@@ -20,6 +22,7 @@ interface Session {
   user: User;
   companyId: string;
   companyName: string;
+  settings: CompanySettings;
 }
 
 type SessionState =
@@ -53,11 +56,10 @@ export function App() {
           setState({ status: 'no-membership', user });
           return;
         }
-        const company = await getDoc(doc(db, 'companies', companyId));
-        const name = company.data()?.name;
+        const company = await getCompany(db, companyId);
         setState({
           status: 'ready',
-          session: { user, companyId, companyName: typeof name === 'string' ? name : '' },
+          session: { user, companyId, companyName: company.name, settings: company.settings },
         });
       } catch (error) {
         setState({ status: 'error', user, message: describeError(error) });
@@ -137,6 +139,7 @@ export function App() {
             key={routeKey}
             companyId={session.companyId}
             uid={session.user.uid}
+            settings={session.settings}
             quoteId={route.name === 'edit' ? route.id : null}
             onDirtyChange={setDirty}
             onCreated={onCreated}

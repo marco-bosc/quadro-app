@@ -12,12 +12,12 @@ import {
   Timestamp,
   type Firestore,
 } from 'firebase/firestore';
-import { validateQuoteDraft, type QuoteDraftInput, type QuoteStatus } from '../shared/quote';
+import { parseQuoteContent, validateQuoteContent, type QuoteContent, type QuoteStatus } from '../shared/quote';
+import type { TaxRegime } from '../shared/vat';
 
 export interface Quote {
   id: string;
-  title: string;
-  notes: string;
+  content: QuoteContent;
   status: QuoteStatus;
   version: number;
   createdBy: string;
@@ -48,8 +48,9 @@ function toDate(value: unknown): Date | null {
 function toQuote(id: string, data: Record<string, unknown>): Quote {
   return {
     id,
-    title: typeof data.title === 'string' ? data.title : '',
-    notes: typeof data.notes === 'string' ? data.notes : '',
+    // Le bozze di I01 (solo titolo e note) vengono lette con i campi nuovi vuoti
+    // e salvate nel formato nuovo al primo salvataggio.
+    content: parseQuoteContent(data),
     status: 'draft',
     version: typeof data.version === 'number' ? data.version : 0,
     createdBy: typeof data.createdBy === 'string' ? data.createdBy : '',
@@ -58,9 +59,28 @@ function toQuote(id: string, data: Record<string, unknown>): Quote {
   };
 }
 
-function assertValid(input: QuoteDraftInput) {
-  const errors = validateQuoteDraft(input);
-  if (errors.length > 0) throw new SaveError('invalid', errors.join(' '));
+function assertValid(content: QuoteContent, regime: TaxRegime) {
+  const issues = validateQuoteContent(content, regime);
+  if (issues.length > 0) throw new SaveError('invalid', issues.map((i) => i.message).join(' '));
+}
+
+/** Campi del contenuto salvati nel documento (copia esplicita: nessun campo estraneo finisce nel database). */
+function contentFields(content: QuoteContent) {
+  return {
+    title: content.title,
+    notes: content.notes,
+    customer: { ...content.customer },
+    validityText: content.validityText,
+    paymentTermsText: content.paymentTermsText,
+    defaultVatCode: content.defaultVatCode,
+    finalDiscountCents: content.finalDiscountCents,
+    pdfDetail: content.pdfDetail,
+    sections: content.sections.map((section) => ({
+      id: section.id,
+      title: section.title,
+      lines: section.lines.map((line) => ({ ...line })),
+    })),
+  };
 }
 
 export async function listQuotes(db: Firestore, companyId: string): Promise<Quote[]> {
@@ -82,16 +102,16 @@ export async function createQuote(
   db: Firestore,
   companyId: string,
   uid: string,
-  input: QuoteDraftInput,
+  content: QuoteContent,
+  regime: TaxRegime,
 ): Promise<{ id: string; version: number }> {
-  assertValid(input);
+  assertValid(content, regime);
   const ref = doc(quotesCollection(db, companyId));
   await runTransaction(db, async (tx) => {
     const current = await tx.get(ref);
     if (current.exists()) throw new SaveError('already-exists', 'Esiste già una bozza con questo identificativo.');
     tx.set(ref, {
-      title: input.title,
-      notes: input.notes,
+      ...contentFields(content),
       status: 'draft',
       version: 1,
       createdBy: uid,
@@ -112,9 +132,10 @@ export async function saveQuote(
   companyId: string,
   quoteId: string,
   expectedVersion: number,
-  input: QuoteDraftInput,
+  content: QuoteContent,
+  regime: TaxRegime,
 ): Promise<number> {
-  assertValid(input);
+  assertValid(content, regime);
   const ref = doc(quotesCollection(db, companyId), quoteId);
   const conflict = () =>
     new SaveError(
@@ -128,8 +149,7 @@ export async function saveQuote(
       if (current.data().version !== expectedVersion) throw conflict();
       const nextVersion = expectedVersion + 1;
       tx.update(ref, {
-        title: input.title,
-        notes: input.notes,
+        ...contentFields(content),
         version: nextVersion,
         updatedAt: serverTimestamp(),
       });

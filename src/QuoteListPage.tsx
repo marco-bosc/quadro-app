@@ -44,7 +44,7 @@ export function QuoteListPage({ companyId }: { companyId: string }) {
           {quotes.map((q) => (
             <li key={q.id}>
               <a href={`#/quotes/${q.id}`}>
-                <span className="list-title">{q.title || '(senza titolo)'}</span>
+                <span className="list-title">{q.content.title || '(senza titolo)'}</span>
                 <span className="muted small">Modificata {formatDateTime(q.updatedAt)}</span>
               </a>
             </li>
