@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
+import { FUNCTIONS_REGION } from '../shared/region';
 
 const env = import.meta.env;
 const useEmulators = env.VITE_USE_EMULATORS === 'true';
@@ -36,3 +38,9 @@ export const db = useEmulators
       experimentalForceLongPolling: true,
     })
   : getFirestore(app);
+
+// Con gli emulatori le callable passano dal proxy di Vite (/__functions → emulatore Functions):
+// connectFunctionsEmulator userebbe http://, non raggiungibile da una pagina https di Codespaces.
+export const functions = useEmulators
+  ? getFunctions(app, `${window.location.origin}/__functions`)
+  : getFunctions(app, FUNCTIONS_REGION);

@@ -21,7 +21,8 @@ process.env.FIRESTORE_EMULATOR_HOST = FIRESTORE_HOST;
 // Stesso progetto usato da `npm run dev` (alias "test" in .firebaserc).
 const projectId: string = JSON.parse(readFileSync('.firebaserc', 'utf8')).projects.test;
 
-// Credenziali FITTIZIE, valide solo negli emulatori locali.
+// Dati e credenziali FITTIZI, validi solo negli emulatori locali
+// (le partite IVA sono numeri di esempio che superano solo il controllo formale).
 const PASSWORD = 'quadro-demo';
 
 let lineSeq = 0;
@@ -55,6 +56,14 @@ const COMPANIES: SeedCompany[] = [
     id: 'elettrica-rossi',
     name: 'Elettrica Rossi',
     settings: {
+      legalName: 'Elettrica Rossi di Mario Rossi',
+      vatNumber: '01234567897',
+      taxCode: '',
+      address: 'Via dei Mille 5, 10123 Torino (TO)',
+      phone: '011 000 0000',
+      email: 'preventivi@elettricarossi.example',
+      website: '',
+      signerName: 'Mario Rossi',
       taxRegime: 'ordinary',
       defaultVatCode: 'VAT10',
       hourlyRate: 320_000, // 32,00 €/h
@@ -101,6 +110,14 @@ const COMPANIES: SeedCompany[] = [
     id: 'impianti-bianchi',
     name: 'Impianti Bianchi',
     settings: {
+      legalName: 'Impianti Bianchi di Luca Bianchi',
+      vatNumber: '12345678903',
+      taxCode: '',
+      address: 'Corso Italia 20, 10023 Chieri (TO)',
+      phone: '011 111 1111',
+      email: 'luca@impiantibianchi.example',
+      website: 'impiantibianchi.example',
+      signerName: 'Luca Bianchi',
       taxRegime: 'flat_rate',
       defaultVatCode: 'FORF',
       hourlyRate: 280_000, // 28,00 €/h

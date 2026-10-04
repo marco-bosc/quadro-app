@@ -3,7 +3,7 @@
 Web app per artigiani (prima gli elettricisti): dalla richiesta di preventivo alla gestione delle offerte.
 Istruzioni per l'agente in `CLAUDE.md`; documenti di progetto in `docs/`.
 
-Stato: I01 chiuso; **I02 completato** (editor del preventivo e calcoli), in attesa di verifica. Prossimo: I02b (emissione e PDF).
+Stato: I01 e I02 chiusi; **I02b in corso** — fatto B1 (emissione e numerazione sul server); da fare B2 (PDF e archiviazione) e B3 (revisioni e interfaccia).
 
 ## Stack
 
@@ -17,7 +17,7 @@ Il devcontainer installa Node 22, Java 21 e `firebase-tools`.
 ```bash
 npm install
 cp .env.example .env.local     # solo la prima volta; i valori fittizi vanno bene per gli emulatori
-npm run dev                    # emulatori + dati fittizi (seed automatico) + Vite
+npm run dev                    # compila le Functions, avvia emulatori + dati fittizi (seed automatico) + Vite
 ```
 
 Aspetta la riga `VITE … ready`, poi apri la porta **5173** dalla scheda **Porte** di VS Code (icona del globo).
@@ -46,6 +46,7 @@ all'interno del codespace (`vite.config.ts`):
 
 - `/identitytoolkit.googleapis.com`, `/securetoken.googleapis.com`, `/emulator` → Auth (9099)
 - `/google.firestore.v1.Firestore`, `/v1/projects` → Firestore (8080)
+- `/__functions/<nome>` → Functions (5001), riscritto in `/<progetto>/europe-west1/<nome>`
 
 In `src/firebase.ts` Auth e Firestore puntano all'indirizzo della pagina stessa
 (Firestore con HTTPS se la pagina è in HTTPS e long polling forzato). Le porte restano **private**:
@@ -85,15 +86,33 @@ Schermate di riferimento con dati fittizi in `docs/design/screens/`.
 preventivo). Riaprendo la bozza, l'app propone di recuperarle o scartarle; la copia si cancella dopo un salvataggio riuscito.
 Se il browser blocca lo storage, l'app funziona senza copia locale.
 
+## Cloud Functions
+
+In `functions/` (pacchetto separato, Node 22). Regione **europe-west1**, dentro la multi-regione `eur3` di Firestore
+(`shared/region.ts`). Il codice di `shared/` viene compilato insieme alle Functions: server e browser usano lo stesso calcolo.
+
+- `issueQuote`: verifica appartenenza, versione, completezza e dati di intestazione; ricalcola i totali; in una transazione
+  assegna il numero (contatore `companies/{id}/counters/quotes-{anno}`, anno nel fuso Europe/Rome), congela l'istantanea
+  (`shared/snapshot.ts`) e porta il preventivo a `issued` con `pdfStatus: "pending"`.
+- `setNextQuoteNumber`: solo owner, solo oltre l'ultimo numero emesso dell'anno.
+- Parametro `ALLOW_UNCONFIRMED_VAT_TEXTS`: `true` nel progetto di test (`functions/.env.quadro-app-test`), `false` per default.
+  Con `false` non si emettono preventivi che usano codici IVA con diciture `[DA CONFERMARE]`.
+
+La logica è nei moduli (`issue.ts`, `numbering.ts`) e viene testata sull'emulatore Firestore (`tests/functions/`);
+`index.ts` registra solo le callable. Dopo una modifica alle Functions con `npm run dev` acceso: `npm run build:functions`
+(l'emulatore ricarica il codice compilato).
+
 ## Struttura
 
 ```
 src/        frontend React: pagine, editor/ (editor del preventivo), ui/ (componenti), styles/ (token)
             accesso ai dati in src/quotes.ts e src/settings.ts; copia locale in src/localDraft.ts
-shared/     codice condiviso con il futuro server, senza Firebase né React:
+functions/  Cloud Functions (vedi sopra)
+shared/     codice condiviso tra browser e Functions, senza Firebase né React:
             money.ts (arrotondamento, testo ↔ interi), vat.ts (codici IVA e diciture),
             quote.ts (modello, limiti, validazione), calc.ts (totali del preventivo),
-            format.ts (importi, prezzi e quantità per la visualizzazione)
+            format.ts (importi, prezzi e quantità per la visualizzazione), company.ts (intestazione,
+            partita IVA), numbering.ts (numero e data a Roma), snapshot.ts (istantanea), region.ts
 tests/      test delle regole e del salvataggio con controllo di versione
 scripts/    seed degli emulatori
 firestore.rules, firestore.indexes.json, firebase.json, .firebaserc

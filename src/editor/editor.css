@@ -12,14 +12,9 @@
 
 .customer { border-top: 1px solid var(--ink); padding-top: var(--sp-14); }
 
-.two-cols { display: grid; grid-template-columns: 1fr; gap: var(--sp-14); }
-@media (min-width: 480px) {
-  .two-cols { grid-template-columns: 1fr 1fr; }
-}
 /* Nel pannello della riga, quantità/unità e prezzo/sconto restano affiancati anche su telefono. */
 .line-panel .two-cols { grid-template-columns: 1.4fr 1fr; }
 
-.row-wrap { display: flex; flex-wrap: wrap; gap: var(--sp-10); align-items: center; }
 
 /* ---------- Sezioni ---------- */
 

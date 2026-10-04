@@ -80,3 +80,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 .plain-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
+.two-cols { display: grid; grid-template-columns: 1fr; gap: var(--sp-14); }
+@media (min-width: 480px) {
+  .two-cols { grid-template-columns: 1fr 1fr; }
+}
+.row-wrap { display: flex; flex-wrap: wrap; gap: var(--sp-10); align-items: center; }

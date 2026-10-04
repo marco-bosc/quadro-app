@@ -1,5 +1,6 @@
 import { FirebaseError } from 'firebase/app';
 import { useEffect, useState, type FormEvent } from 'react';
+import { COMPANY_LIMITS, missingForIssue, validateProfile, type CompanyProfile } from '../shared/company';
 import { DECIMALS } from '../shared/money';
 import { LIMITS, validateSettings, type CompanySettings } from '../shared/quote';
 import { allowedVatCodes, VAT, type TaxRegime, type VatCode } from '../shared/vat';
@@ -10,7 +11,8 @@ import { getCompany, saveSettings, type Company } from './settings';
 import { SaveError } from './quotes';
 import { Button } from './ui/Button';
 import { DecimalField } from './ui/DecimalField';
-import { SelectField, TextAreaField } from './ui/Field';
+import { Field, SelectField, TextAreaField } from './ui/Field';
+import { NextNumberBlock } from './NextNumberBlock';
 import { SaveBar } from './ui/SaveBar';
 import { useInvalidTracker } from './ui/useInvalidTracker';
 
@@ -55,6 +57,7 @@ export function SettingsPage({ companyId, email, isOwner, onDirtyChange, onSaved
   const dirty = company !== null && draft !== null && !sameSettings(company.settings, draft);
   const issues = draft ? validateSettings(draft) : [];
   const blocked = issues.length > 0 || hasInvalid();
+  const profileErrors = draft ? Object.fromEntries(validateProfile(draft).map((i) => [i.field, i.message])) : {};
 
   useEffect(() => {
     onDirtyChange(dirty);
@@ -96,6 +99,24 @@ export function SettingsPage({ companyId, email, isOwner, onDirtyChange, onSaved
     setDraft({ ...draft, taxRegime, defaultVatCode: codes.includes(draft.defaultVatCode) ? draft.defaultVatCode : codes[0] });
   };
 
+  const profileField = (
+    field: keyof CompanyProfile,
+    label: string,
+    opts: { inputMode?: 'numeric' | 'tel' | 'email'; placeholder?: string; transform?: (v: string) => string } = {},
+  ) =>
+    draft && (
+      <Field
+        label={label}
+        value={draft[field]}
+        maxLength={COMPANY_LIMITS[field]}
+        inputMode={opts.inputMode}
+        placeholder={opts.placeholder}
+        autoComplete="off"
+        error={draft[field] ? profileErrors[field] : null}
+        onChange={(e) => setDraft({ ...draft, [field]: opts.transform ? opts.transform(e.target.value) : e.target.value })}
+      />
+    );
+
   if (loadError) return <main className="page"><p className="notice" role="alert">{loadError}</p></main>;
   if (!company || !draft) return <main className="page"><p className="muted">Caricamento…</p></main>;
 
@@ -118,8 +139,33 @@ export function SettingsPage({ companyId, email, isOwner, onDirtyChange, onSaved
         <h1>Profilo</h1>
 
         <fieldset disabled={!isOwner} className="stack plain-fieldset">
+          <h2>Dati sul preventivo</h2>
+          {!isOwner && <p className="notice info">Solo il titolare dell’account può modificare questi dati.</p>}
+          {missingForIssue(draft).length > 0 && (
+            <p className="notice">Per emettere i preventivi servono ragione sociale, partita IVA e indirizzo.</p>
+          )}
+          {profileField('legalName', 'Ragione sociale')}
+          {profileField('vatNumber', 'Partita IVA', { inputMode: 'numeric', placeholder: '11 cifre' })}
+          {profileField('taxCode', 'Codice fiscale (facoltativo)', { transform: (v) => v.toUpperCase() })}
+          {profileField('address', 'Indirizzo', { placeholder: 'Via, numero, CAP, città' })}
+          <div className="two-cols">
+            {profileField('phone', 'Telefono', { inputMode: 'tel' })}
+            {profileField('email', 'Email per le risposte', { inputMode: 'email' })}
+          </div>
+          {profileField('website', 'Sito (facoltativo)')}
+          {profileField('signerName', 'Nome di chi firma i preventivi')}
+          <p className="muted small">
+            Le modifiche valgono per i nuovi preventivi. Quelli già emessi restano come sono stati emessi.
+          </p>
+        </fieldset>
+
+        <section className="stack">
+          <h2>Numerazione</h2>
+          <NextNumberBlock companyId={companyId} isOwner={isOwner} />
+        </section>
+
+        <fieldset disabled={!isOwner} className="stack plain-fieldset">
           <h2>Impostazioni dei preventivi</h2>
-          {!isOwner && <p className="notice info">Solo il titolare dell’account può modificare queste impostazioni.</p>}
 
           <SelectField label="Regime fiscale" value={draft.taxRegime} onChange={(e) => setRegime(e.target.value as TaxRegime)}>
             {(Object.keys(REGIME_LABELS) as TaxRegime[]).map((r) => (

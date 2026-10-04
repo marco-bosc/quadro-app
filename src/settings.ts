@@ -1,4 +1,6 @@
 import { doc, getDoc, runTransaction, type Firestore } from 'firebase/firestore';
+import { httpsCallable, type Functions } from 'firebase/functions';
+import { nextSequence, romeDate } from '../shared/numbering';
 import { parseSettings, validateSettings, type CompanySettings } from '../shared/quote';
 import { SaveError } from './quotes';
 
@@ -50,6 +52,14 @@ export async function saveSettings(
     const version = expectedVersion + 1;
     tx.update(ref, {
       settings: {
+        legalName: settings.legalName,
+        vatNumber: settings.vatNumber,
+        taxCode: settings.taxCode,
+        address: settings.address,
+        phone: settings.phone,
+        email: settings.email,
+        website: settings.website,
+        signerName: settings.signerName,
         taxRegime: settings.taxRegime,
         defaultVatCode: settings.defaultVatCode,
         hourlyRate: settings.hourlyRate,
@@ -60,4 +70,17 @@ export async function saveSettings(
     });
     return version;
   });
+}
+
+/** Prossimo numero dell'anno corrente (a Roma), letto dal contatore. */
+export async function getNextNumber(db: Firestore, companyId: string, now = new Date()): Promise<{ year: number; next: number }> {
+  const { year } = romeDate(now);
+  const snap = await getDoc(doc(db, 'companies', companyId, 'counters', `quotes-${year}`));
+  return { year, next: nextSequence(snap.data()) };
+}
+
+/** Imposta il prossimo numero (solo owner, solo oltre l'ultimo emesso): lo verifica il server. */
+export async function setNextNumber(functions: Functions, companyId: string, next: number): Promise<{ year: number; next: number }> {
+  const call = httpsCallable<{ companyId: string; next: number }, { year: number; next: number }>(functions, 'setNextQuoteNumber');
+  return (await call({ companyId, next })).data;
 }

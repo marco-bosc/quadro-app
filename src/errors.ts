@@ -5,6 +5,15 @@ import { SaveError } from './quotes';
 export function describeError(error: unknown): string {
   if (error instanceof SaveError) return error.message;
   if (error instanceof FirebaseError) {
+    // Errori delle Functions: il server manda già un messaggio in italiano, tranne per quelli imprevisti.
+    if (error.code.startsWith('functions/')) {
+      if (error.code === 'functions/unavailable' || error.code === 'functions/deadline-exceeded') {
+        return 'Servizio non raggiungibile: controlla la connessione e riprova.';
+      }
+      if (error.code === 'functions/internal' && error.message === 'internal') return 'Errore imprevisto sul server. Riprova tra poco.';
+      // L'SDK aggiunge il codice HTTP in fondo al messaggio ("… [400]"): non serve all'utente.
+      return error.message.replace(/\s*\[\d{3}\]$/, '');
+    }
     switch (error.code) {
       case 'auth/invalid-credential':
       case 'auth/invalid-email':
