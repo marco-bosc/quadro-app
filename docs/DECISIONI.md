@@ -1,6 +1,6 @@
 # Decisioni successive alla v0.4
 
-Aggiornamento: 4 ottobre 2026 (seconda revisione, prima di I02).
+Aggiornamento: 4 ottobre 2026 (terza revisione, prima di I02b).
 Questo file prevale su `QUADRO_STATO_PROGETTO_v0_4.md` dove sono in conflitto.
 Le parti segnate **DA CONFERMARE** dipendono dalla risposta del commercialista.
 
@@ -9,8 +9,8 @@ Le parti segnate **DA CONFERMARE** dipendono dalla risposta del commercialista.
 - **Agente di sviluppo:** Claude Code (prima Codex). Le istruzioni sono in `CLAUDE.md`, che sostituisce `AGENTS.md`.
 - **Ambiente:** GitHub Codespaces su account personale, configurato da `.devcontainer/devcontainer.json`.
 - **Firebase:** due progetti separati, test e produzione, nella stessa regione europea.
-  Per ora esiste solo il progetto di test, sul piano gratuito. Il piano a consumo (Blaze),
-  con avviso di budget, si attiva prima dell'incarico che richiede Cloud Functions (I02b: emissione e PDF).
+  Il progetto di test (alias `test` in `.firebaserc`) è sul piano a consumo (Blaze), con avviso di budget.
+  Cloud Functions nella stessa regione di Firestore, runtime Node 22.
 
 ## Prodotto
 
@@ -78,6 +78,44 @@ Le parti segnate **DA CONFERMARE** dipendono dalla risposta del commercialista.
 - Controllo di versione: un salvataggio fallisce, con messaggio chiaro, se nel frattempo il documento è cambiato.
 - Copia locale nel browser delle modifiche non salvate, con proposta di recupero alla riapertura (in I02).
 
+## Emissione e numerazione
+
+- **Intestazione dell'azienda** inserita una volta sola nelle impostazioni: ragione sociale, partita IVA, codice fiscale (facoltativo),
+  indirizzo, telefono, email, sito (facoltativo), nome di chi firma i preventivi. **Logo** facoltativo caricato nelle impostazioni.
+- L'emissione avviene sul server (Cloud Function), che ricalcola i totali e congela un'istantanea immutabile del preventivo.
+- **Numero:** `2026/014` sul documento, `2026-014` nei nomi dei file. Progressivo per azienda, riparte ogni anno,
+  almeno 3 cifre, assegnato solo all'emissione, mai riusato. Anno e data nel fuso `Europe/Rome`.
+- **Numero di partenza:** l'owner può impostare il prossimo numero dell'anno, solo in aumento rispetto all'ultimo emesso
+  (per chi continua una numerazione iniziata con un altro sistema).
+- **Diciture non confermate:** in test l'emissione è permessa con i segnaposto visibili; in produzione sono bloccati
+  solo i preventivi che usano codici IVA con dicitura ancora `[DA CONFERMARE]`.
+
+## PDF
+
+- Generato sul server con pdfmake. Contiene: logo e dati dell'azienda, numero, data e oggetto, dati del cliente,
+  sezioni e righe secondo il livello di dettaglio, voci opzionali in un blocco separato, riepilogo dei totali, diciture,
+  validità e condizioni di pagamento.
+- **Firma:** nome di chi emette (solo testo, nessuna firma grafica o digitale) e riquadro **"Per accettazione"** con data e firma del cliente.
+
+## Revisioni
+
+- Un preventivo emesso non si modifica. "Correggi" crea una bozza collegata all'originale.
+- La revisione emessa prende lo stesso numero con la revisione (`2026/014 rev. 1`) senza incrementare il contatore;
+  l'originale diventa `superseded` e resta consultabile. Una sola revisione aperta per preventivo.
+- Stati: `draft`, `issued`, `superseded`. Annullamento non previsto per ora.
+
+## Archiviazione
+
+- PDF salvati in Storage nella cartella dell'azienda. Leggibili solo dai membri dell'azienda, scritti solo dal server.
+- Nessun link pubblico permanente: i file si scaricano con le credenziali dell'utente.
+- Durante il pilota non si cancella nulla. Regola di conservazione definitiva da decidere prima della produzione (vedi domande al commercialista).
+
+## Deploy
+
+- Sviluppo e test sugli emulatori.
+- Deploy ammesso solo sul progetto di test (Functions, regole Firestore e Storage, Hosting), solo dopo un "ok deploy test" esplicito.
+- Mai in produzione; nessuna altra risorsa cloud.
+
 ## Invio
 
 - **Email centrale rimandata a dopo il pilota.** Nel pilota: condivisione del PDF dal dispositivo (Web Share API),
@@ -90,3 +128,4 @@ Le parti segnate **DA CONFERMARE** dipendono dalla risposta del commercialista.
 3. Per i forfettari va indicato il bollo da 2 € anche sul preventivo?
 4. Come conviene presentare i beni significativi in un preventivo?
 5. Ritenuta del 4% per i condomini e split payment per la PA: vanno considerati nel preventivo o solo in fattura?
+6. Per quanti anni conviene conservare i preventivi emessi, in particolare quelli accettati e firmati dal cliente?
