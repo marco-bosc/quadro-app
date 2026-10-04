@@ -23,8 +23,10 @@ export const auth = getAuth(app);
 // è il proxy di Vite (vite.config.ts) a inoltrare le chiamate agli emulatori nel codespace.
 // Così funziona sia da VS Code desktop (http://localhost:5173) sia dal browser
 // (https://<codespace>-5173.app.github.dev) senza rendere pubbliche altre porte.
+// Il banner dell'emulatore Auth è fisso in fondo alla pagina e coprirebbe la barra "Salva":
+// lo disattiviamo (resta l'avviso in console). L'uso degli emulatori è garantito dal controllo sopra.
 if (useEmulators) {
-  connectAuthEmulator(auth, window.location.origin);
+  connectAuthEmulator(auth, window.location.origin, { disableWarnings: true });
 }
 
 export const db = useEmulators

@@ -1,10 +1,49 @@
 import { useCallback, useEffect, useState } from 'react';
+import { calculateQuote } from '../shared/calc';
+import { formatEuro } from '../shared/format';
+import type { TaxRegime } from '../shared/vat';
+import { missingAmountsLabel } from './editor/labels';
 import { describeError } from './errors';
 import { db } from './firebase';
-import { formatDateTime } from './format';
+import { formatRelative, formatToday } from './format';
 import { listQuotes, type Quote } from './quotes';
+import { Button } from './ui/Button';
+import { buttonClass } from './ui/buttonClass';
+import './QuoteListPage.css';
 
-export function QuoteListPage({ companyId }: { companyId: string }) {
+interface Props {
+  companyId: string;
+  companyName: string;
+  regime: TaxRegime;
+}
+
+function QuoteRow({ quote, regime }: { quote: Quote; regime: TaxRegime }) {
+  const totals = calculateQuote(quote.content, regime);
+  const { title, customer } = quote.content;
+  return (
+    <li>
+      <a className="doc-row" href={`#/quotes/${quote.id}`}>
+        <span className="doc-row-top">
+          <span className="doc-title">{title.trim() || 'Preventivo senza oggetto'}</span>
+          <span className="doc-amount num">
+            {totals.partial ? <span className="missing">{missingAmountsLabel(totals)}</span> : formatEuro(totals.totalCents)}
+          </span>
+        </span>
+        <span className="doc-row-bottom">
+          <span className="muted small">
+            {customer.name.trim() || 'Cliente da indicare'} · {formatRelative(quote.updatedAt)}
+          </span>
+          <span className={`status-text${totals.complete ? '' : ' warning'}`}>
+            {totals.complete ? 'Bozza' : 'Bozza incompleta'}
+          </span>
+        </span>
+      </a>
+    </li>
+  );
+}
+
+/** Home "Oggi": per ora solo le bozze (le richieste arriveranno con I03). */
+export function QuoteListPage({ companyId, companyName, regime }: Props) {
   const [quotes, setQuotes] = useState<Quote[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,35 +61,39 @@ export function QuoteListPage({ companyId }: { companyId: string }) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    document.title = 'Bozze · Quadro';
+  }, []);
+
   return (
-    <section className="stack">
-      <div className="row">
-        <h1>Bozze</h1>
-        <a className="button primary" href="#/quotes/new">Nuova bozza</a>
+    <main className="page with-bottom-bar">
+      <div>
+        <p className="group-label">{companyName}</p>
+        <p className="muted small">{formatToday()}</p>
       </div>
+      <h1>Bozze</h1>
 
       {error && (
-        <div className="alert alert-error" role="alert">
+        <div className="notice" role="alert">
           <p>{error}</p>
-          <button type="button" onClick={load}>Riprova</button>
+          <Button variant="secondary" strong onClick={load}>Riprova</Button>
         </div>
       )}
 
       {!error && quotes === null && <p className="muted">Caricamento…</p>}
-      {quotes?.length === 0 && <p className="muted">Nessuna bozza. Creane una con «Nuova bozza».</p>}
+      {quotes?.length === 0 && <p className="muted">Nessuna bozza. Creane una con «Nuovo preventivo».</p>}
 
       {quotes && quotes.length > 0 && (
-        <ul className="list">
+        <ul className="doc-list">
           {quotes.map((q) => (
-            <li key={q.id}>
-              <a href={`#/quotes/${q.id}`}>
-                <span className="list-title">{q.content.title || '(senza titolo)'}</span>
-                <span className="muted small">Modificata {formatDateTime(q.updatedAt)}</span>
-              </a>
-            </li>
+            <QuoteRow key={q.id} quote={q} regime={regime} />
           ))}
         </ul>
       )}
-    </section>
+
+      <div className="home-actions">
+        <a className={buttonClass('primary', 'full')} href="#/quotes/new">Nuovo preventivo</a>
+      </div>
+    </main>
   );
 }

@@ -1,0 +1,6 @@
+.login { padding-top: 56px; max-width: 440px; }
+.brand { font-family: var(--font-display); font-weight: 800; font-size: 52px; line-height: 1; letter-spacing: -0.02em; }
+.brand span { color: var(--accent); }
+.tagline { margin-top: var(--sp-10); color: var(--text-2); font-size: var(--fs-body-lg); }
+.password-row { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: var(--sp-8); }
+.login-footer { border-top: 1px solid var(--line); padding-top: var(--sp-16); }
