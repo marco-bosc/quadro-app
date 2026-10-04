@@ -2,13 +2,15 @@
 
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
-import { defineBoolean } from 'firebase-functions/params';
+import { defineBoolean, defineString } from 'firebase-functions/params';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { FUNCTIONS_REGION } from '../../shared/region';
 import { issueQuoteHandler } from './issue';
 import { setNextQuoteNumberHandler } from './numbering';
+import { generateQuotePdf, regenerateQuotePdfHandler } from './pdf/generate';
 
 initializeApp();
 // maxInstances limita i costi in caso di traffico anomalo.
@@ -16,6 +18,8 @@ setGlobalOptions({ region: FUNCTIONS_REGION, maxInstances: 5 });
 
 /** true nel progetto di test (functions/.env.quadro-app-test); in produzione resta false. */
 const allowUnconfirmedVatTexts = defineBoolean('ALLOW_UNCONFIRMED_VAT_TEXTS', { default: false });
+/** Bucket di Storage, esplicito: lo stesso nome va in VITE_FIREBASE_STORAGE_BUCKET del frontend. */
+const storageBucket = defineString('STORAGE_BUCKET');
 
 function requireAuth(request: CallableRequest): string {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Accesso richiesto.');
@@ -33,14 +37,24 @@ async function guarded<T>(name: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export const issueQuote = onCall((request) =>
-  guarded('issueQuote', () =>
-    issueQuoteHandler(
-      { db: getFirestore(), now: () => new Date(), allowUnconfirmedVatTexts: allowUnconfirmedVatTexts.value() },
-      requireAuth(request),
-      request.data,
-    ),
-  ),
+function pdfDeps() {
+  return { db: getFirestore(), bucket: getStorage().bucket(storageBucket.value()) };
+}
+
+/** Emette il preventivo, poi genera il PDF. Se il PDF fallisce il numero resta: pdfStatus "error" e si può rigenerare. */
+export const issueQuote = onCall({ memory: '512MiB', timeoutSeconds: 120 }, (request) =>
+  guarded('issueQuote', async () => {
+    const uid = requireAuth(request);
+    const deps = { ...pdfDeps(), now: () => new Date(), allowUnconfirmedVatTexts: allowUnconfirmedVatTexts.value() };
+    const issued = await issueQuoteHandler(deps, uid, request.data);
+    const { companyId, quoteId } = request.data as { companyId: string; quoteId: string };
+    const pdf = await generateQuotePdf(deps, companyId, quoteId);
+    return { ...issued, pdfStatus: pdf.pdfStatus };
+  }),
+);
+
+export const regenerateQuotePdf = onCall({ memory: '512MiB', timeoutSeconds: 120 }, (request) =>
+  guarded('regenerateQuotePdf', () => regenerateQuotePdfHandler(pdfDeps(), requireAuth(request), request.data)),
 );
 
 export const setNextQuoteNumber = onCall((request) =>

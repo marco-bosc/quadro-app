@@ -1,14 +1,26 @@
 // Ambiente per testare la logica delle Functions sull'emulatore Firestore, con l'SDK admin.
 
-import { getApps, getFirestore, initializeApp, Timestamp, type Firestore } from '../../functions/test-support/admin';
+import { getApps, getFirestore, getStorage, initializeApp, Timestamp, type Firestore } from '../../functions/test-support/admin';
+import type { Bucket } from '../../functions/src/pdf/generate';
 import { EMPTY_PROFILE } from '../../shared/company';
 import { createLine, createQuoteContent, createSection, DEFAULT_SETTINGS, type CompanySettings, type QuoteContent } from '../../shared/quote';
 import { PROJECT_ID } from '../helpers';
 
+export const TEST_BUCKET = `${PROJECT_ID}.appspot.com`;
+
+function adminApp() {
+  if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_STORAGE_EMULATOR_HOST) {
+    throw new Error('Emulatori Firestore e Storage mancanti: usa "npm test".');
+  }
+  return getApps()[0] ?? initializeApp({ projectId: PROJECT_ID, storageBucket: TEST_BUCKET });
+}
+
 export function adminDb(): Firestore {
-  if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('FIRESTORE_EMULATOR_HOST mancante: usa "npm test".');
-  const app = getApps()[0] ?? initializeApp({ projectId: PROJECT_ID });
-  return getFirestore(app);
+  return getFirestore(adminApp());
+}
+
+export function adminBucket(): Bucket {
+  return getStorage(adminApp()).bucket(TEST_BUCKET);
 }
 
 export const COMPLETE_SETTINGS: CompanySettings = {
@@ -59,8 +71,9 @@ export async function seedDraft(db: Firestore, companyId: string, quoteId: strin
   });
 }
 
-/** Svuota il database dell'emulatore (API dell'emulatore Firestore). */
+/** Svuota database e bucket degli emulatori. */
 export async function clearAll() {
   const host = process.env.FIRESTORE_EMULATOR_HOST;
   await fetch(`http://${host}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`, { method: 'DELETE' });
+  await adminBucket().deleteFiles({ force: true });
 }

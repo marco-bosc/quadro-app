@@ -3,14 +3,15 @@ import { issueQuoteHandler, type IssueDeps } from '../../functions/src/issue';
 import { setNextQuoteNumberHandler } from '../../functions/src/numbering';
 import { HttpsError, Timestamp } from '../../functions/test-support/admin';
 import type { QuoteSnapshot } from '../../shared/snapshot';
-import { adminDb, clearAll, COMPLETE_SETTINGS, completeContent, seedCompanies, seedDraft } from './helpers';
+import { adminBucket, adminDb, clearAll, COMPLETE_SETTINGS, completeContent, seedCompanies, seedDraft } from './helpers';
 
 const db = adminDb();
+const bucket = adminBucket();
 // 4 ottobre 2026, 10:00 a Roma
 const OCT_4 = new Date('2026-10-04T08:00:00Z');
 
 function deps(over: Partial<IssueDeps> = {}): IssueDeps {
-  return { db, now: () => OCT_4, allowUnconfirmedVatTexts: false, ...over };
+  return { db, bucket, now: () => OCT_4, allowUnconfirmedVatTexts: false, ...over };
 }
 
 const issue = (quoteId: string, over: Partial<IssueDeps> = {}, uid = 'ownerA', version = 1, companyId = 'A') =>

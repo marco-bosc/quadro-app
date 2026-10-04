@@ -8,9 +8,12 @@ import { SNAPSHOT_SCHEMA_VERSION, type QuoteSnapshot } from '../../shared/snapsh
 import { isPlaceholderLegend, VAT } from '../../shared/vat';
 import { precondition, requireInt, requireMember, requireString } from './access';
 import { counterPath } from './numbering';
+import type { Bucket } from './pdf/generate';
+import { logoPath, quoteLogoPath } from '../../shared/storagePaths';
 
 export interface IssueDeps {
   db: Firestore;
+  bucket: Bucket;
   now: () => Date;
   /** true nel progetto di test: si emette anche con diciture IVA non confermate (segnaposto visibili). */
   allowUnconfirmedVatTexts: boolean;
@@ -37,6 +40,10 @@ export async function issueQuoteHandler(deps: IssueDeps, uid: string, data: unkn
   const quoteId = requireString(input.quoteId, 'quoteId');
   const version = requireInt(input.version, 'version');
   await requireMember(deps.db, uid, companyId);
+
+  // Il logo attuale viene copiato nella cartella del preventivo prima della transazione:
+  // l'istantanea punta alla copia, quindi sostituire il logo dopo non cambia questo preventivo.
+  const frozenLogoPath = await freezeLogo(deps.bucket, companyId, quoteId);
 
   const companyRef = deps.db.doc(`companies/${companyId}`);
   const quoteRef = deps.db.doc(`companies/${companyId}/quotes/${quoteId}`);
@@ -102,7 +109,7 @@ export async function issueQuoteHandler(deps: IssueDeps, uid: string, data: unkn
         website: settings.website,
         signerName: settings.signerName,
         taxRegime: settings.taxRegime,
-        logoPath: null, // il logo arriva in I02b-B2
+        logoPath: frozenLogoPath,
       },
       content,
       totals: {
@@ -140,4 +147,14 @@ export async function issueQuoteHandler(deps: IssueDeps, uid: string, data: unkn
     });
     return { displayNumber: snapshot.number.display, totalCents: totals.totalCents };
   });
+}
+
+async function freezeLogo(bucket: Bucket, companyId: string, quoteId: string): Promise<string | null> {
+  const source = bucket.file(logoPath(companyId));
+  const [exists] = await source.exists();
+  if (!exists) return null;
+  const [[bytes], [metadata]] = await Promise.all([source.download(), source.getMetadata()]);
+  const target = quoteLogoPath(companyId, quoteId);
+  await bucket.file(target).save(bytes, { resumable: false, contentType: String(metadata.contentType ?? '') });
+  return target;
 }

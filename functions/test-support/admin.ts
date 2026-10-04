@@ -3,4 +3,5 @@
 // Non fa parte del codice pubblicato (vedi "ignore" in firebase.json).
 export { getApps, initializeApp } from 'firebase-admin/app';
 export { FieldValue, getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+export { getStorage } from 'firebase-admin/storage';
 export { HttpsError } from 'firebase-functions/v2/https';

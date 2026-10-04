@@ -11,8 +11,8 @@
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
     "build:functions": "npm --prefix functions run build",
-    "test": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore \"vitest run\"",
-    "test:rules": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore \"vitest run tests/rules\"",
+    "test": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore,storage \"vitest run\"",
+    "test:rules": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore,storage \"vitest run tests/rules\"",
     "check": "npm run lint && npm run typecheck && npm run build && npm run build:functions && npm run test"
   },
   "dependencies": {
@@ -32,6 +32,7 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "firebase-admin": "^14.5.0",
     "globals": "^17.13.0",
+    "pdfjs-dist": "^6.4.299",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
