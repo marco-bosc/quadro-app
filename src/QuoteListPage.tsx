@@ -17,32 +17,55 @@ interface Props {
   regime: TaxRegime;
 }
 
-function QuoteRow({ quote, regime }: { quote: Quote; regime: TaxRegime }) {
-  const totals = calculateQuote(quote.content, regime);
-  const { title, customer } = quote.content;
+/** Riga dell'elenco: per gli emessi fanno fede numero e totali dell'istantanea. */
+function QuoteRow({ quote, regime, byId }: { quote: Quote; regime: TaxRegime; byId: Map<string, Quote> }) {
+  const issued = quote.status !== 'draft' && quote.snapshot !== null;
+  const content = issued ? quote.snapshot!.content : quote.content;
+  const totals = issued ? null : calculateQuote(quote.content, regime);
+  const original = quote.revisionOf ? byId.get(quote.revisionOf) : undefined;
+  const replacement = quote.supersededBy ? byId.get(quote.supersededBy) : undefined;
+
+  let status: { text: string; warning?: boolean };
+  if (quote.status === 'issued') status = { text: 'Emesso' };
+  else if (quote.status === 'superseded') status = { text: 'Sostituito' };
+  else if (!totals!.complete) status = { text: 'Bozza incompleta', warning: true };
+  else status = { text: 'Bozza' };
+
+  const label = issued
+    ? quote.displayNumber
+    : quote.revisionOf
+      ? `Correzione di ${original?.displayNumber ?? 'un preventivo emesso'}`
+      : null;
+
   return (
     <li>
-      <a className="doc-row" href={`#/quotes/${quote.id}`}>
+      <a className={`doc-row${quote.status === 'superseded' ? ' superseded' : ''}`} href={`#/quotes/${quote.id}`}>
+        {label && <span className="doc-number num">{label}</span>}
         <span className="doc-row-top">
-          <span className="doc-title">{title.trim() || 'Preventivo senza oggetto'}</span>
+          <span className="doc-title">{content.title.trim() || 'Preventivo senza oggetto'}</span>
           <span className="doc-amount num">
-            {totals.partial ? <span className="missing">{missingAmountsLabel(totals)}</span> : formatEuro(totals.totalCents)}
+            {issued ? (
+              formatEuro(quote.snapshot!.totals.totalCents)
+            ) : totals!.partial ? (
+              <span className="missing">{missingAmountsLabel(totals!)}</span>
+            ) : (
+              formatEuro(totals!.totalCents)
+            )}
           </span>
         </span>
         <span className="doc-row-bottom">
           <span className="muted small">
-            {customer.name.trim() || 'Cliente da indicare'} · {formatRelative(quote.updatedAt)}
+            {content.customer.name.trim() || 'Cliente da indicare'} · {formatRelative(quote.issuedAt ?? quote.updatedAt)}
+            {quote.status === 'superseded' && replacement?.displayNumber ? ` · sostituito da ${replacement.displayNumber}` : ''}
           </span>
-          <span className={`status-text${totals.complete ? '' : ' warning'}`}>
-            {totals.complete ? 'Bozza' : 'Bozza incompleta'}
-          </span>
+          <span className={`status-text${status.warning ? ' warning' : ''}`}>{status.text}</span>
         </span>
       </a>
     </li>
   );
 }
 
-/** Home "Oggi": per ora solo le bozze (le richieste arriveranno con I03). */
+/** Home "Oggi": per ora solo i preventivi (le richieste arriveranno con I03). */
 export function QuoteListPage({ companyId, companyName, regime }: Props) {
   const [quotes, setQuotes] = useState<Quote[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,8 +85,10 @@ export function QuoteListPage({ companyId, companyName, regime }: Props) {
   }, [load]);
 
   useEffect(() => {
-    document.title = 'Bozze · Quadro';
+    document.title = 'Preventivi · Quadro';
   }, []);
+
+  const byId = new Map((quotes ?? []).map((q) => [q.id, q]));
 
   return (
     <main className="page with-bottom-bar">
@@ -71,7 +96,7 @@ export function QuoteListPage({ companyId, companyName, regime }: Props) {
         <p className="group-label">{companyName}</p>
         <p className="muted small">{formatToday()}</p>
       </div>
-      <h1>Bozze</h1>
+      <h1>Preventivi</h1>
 
       {error && (
         <div className="notice" role="alert">
@@ -81,12 +106,12 @@ export function QuoteListPage({ companyId, companyName, regime }: Props) {
       )}
 
       {!error && quotes === null && <p className="muted">Caricamento…</p>}
-      {quotes?.length === 0 && <p className="muted">Nessuna bozza. Creane una con «Nuovo preventivo».</p>}
+      {quotes?.length === 0 && <p className="muted">Nessun preventivo. Creane uno con «Nuovo preventivo».</p>}
 
       {quotes && quotes.length > 0 && (
         <ul className="doc-list">
           {quotes.map((q) => (
-            <QuoteRow key={q.id} quote={q} regime={regime} />
+            <QuoteRow key={q.id} quote={q} regime={regime} byId={byId} />
           ))}
         </ul>
       )}

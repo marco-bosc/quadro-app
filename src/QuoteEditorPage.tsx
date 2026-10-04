@@ -18,7 +18,11 @@ import * as ops from './editor/contentOps';
 import { LinePanel } from './editor/LinePanel';
 import { SectionBlock } from './editor/SectionBlock';
 import { missingAmountsLabel } from './editor/labels';
+import { IssuePanel } from './editor/IssuePanel';
 import { TotalsSummary } from './editor/TotalsSummary';
+import { IssuedQuotePage } from './IssuedQuotePage';
+import { discardRevision } from './issuing';
+import { displayQuoteNumber } from '../shared/numbering';
 import { describeError } from './errors';
 import { db } from './firebase';
 import { formatSavedAt } from './format';
@@ -82,6 +86,10 @@ export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, 
     return copy && !sameContent(copy.content, saved) ? copy : null;
   });
   const [regimeNotice, setRegimeNotice] = useState(false);
+  // Un preventivo già emesso si apre in sola lettura.
+  const [readOnly, setReadOnly] = useState(false);
+  // Bozza di revisione: numero dell'originale e numero che riceverà all'emissione.
+  const [revisionInfo, setRevisionInfo] = useState<{ originalId: string; originalNumber: string; label: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<SaveProblem | null>(null);
   const [openLine, setOpenLine] = useState<{ sectionId: string; lineId: string } | null>(null);
@@ -100,8 +108,21 @@ export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, 
     try {
       const quote = await getQuote(db, companyId, id);
       if (!quote) {
-        setLoadError('Bozza non trovata.');
+        setLoadError('Preventivo non trovato.');
         return;
+      }
+      if (quote.status !== 'draft') {
+        setReadOnly(true);
+        return;
+      }
+      if (quote.revisionOf) {
+        const original = await getQuote(db, companyId, quote.revisionOf);
+        const number = original?.snapshot?.number;
+        setRevisionInfo({
+          originalId: quote.revisionOf,
+          originalNumber: original?.displayNumber ?? '',
+          label: number ? displayQuoteNumber({ year: number.year, sequence: number.sequence, revision: quote.revision }) : `rev. ${quote.revision}`,
+        });
       }
       const normalized = ops.normalizeVatCodes(quote.content, regime, settings.defaultVatCode);
       setSaved(quote.content);
@@ -249,6 +270,25 @@ export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, 
     void load(quoteId);
   };
 
+  const discard = async () => {
+    if (!quoteId || !revisionInfo) return;
+    if (!window.confirm('Annullare la correzione? Le modifiche di questa revisione andranno perse; l’originale resta valido.')) return;
+    try {
+      await discardRevision({ companyId, quoteId });
+      removeLocalDraft(localDraftKey(companyId, quoteId));
+      onDirtyChange(false);
+      window.location.hash = `#/quotes/${revisionInfo.originalId}`;
+    } catch (e) {
+      setProblem({ kind: 'error', text: describeError(e) });
+    }
+  };
+
+  const onIssued = () => {
+    if (!quoteId) return;
+    removeLocalDraft(localDraftKey(companyId, quoteId));
+    void load(quoteId);
+  };
+
   // ---------- Vista ----------
 
   if (loading) return <main className="page"><p className="muted">Caricamento…</p></main>;
@@ -257,10 +297,12 @@ export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, 
     return (
       <main className="page">
         <p className="notice" role="alert">{loadError}</p>
-        <a href="#/">Torna alle bozze</a>
+        <a href="#/">Torna ai preventivi</a>
       </main>
     );
   }
+
+  if (readOnly && quoteId) return <IssuedQuotePage companyId={companyId} quoteId={quoteId} />;
 
   const openSection = openLine ? draft.sections.find((s) => s.id === openLine.sectionId) : undefined;
   const openLineIndex = openSection ? openSection.lines.findIndex((l) => l.id === openLine?.lineId) : -1;
@@ -285,8 +327,8 @@ export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, 
       }}
     >
       <header className="detail-header">
-        <a href="#/" className="back-link"><BackIcon /> Bozze</a>
-        <span className="muted small">Preventivo · bozza</span>
+        <a href="#/" className="back-link"><BackIcon /> Preventivi</a>
+        <span className="muted small">{revisionInfo ? 'Correzione · bozza' : 'Preventivo · bozza'}</span>
       </header>
 
       <main className="page with-bottom-bar editor">
@@ -307,6 +349,16 @@ export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, 
               <Button variant="secondary" strong onClick={acceptRecovery}>Recupera le modifiche</Button>
               <Button variant="text" tone="warning" onClick={discardRecovery}>Scarta</Button>
             </div>
+          </div>
+        )}
+
+        {revisionInfo && (
+          <div className="notice info">
+            <p>
+              Correzione di <a href={`#/quotes/${revisionInfo.originalId}`}>{revisionInfo.originalNumber || 'un preventivo emesso'}</a>:
+              all’emissione diventerà <strong>{revisionInfo.label}</strong>. L’originale resta valido finché non emetti la correzione.
+            </p>
+            <Button variant="text" tone="warning" onClick={discard}>Annulla la correzione</Button>
           </div>
         )}
 
@@ -398,6 +450,19 @@ export function QuoteEditorPage({ companyId, uid, settings, quoteId: initialId, 
             onFinalDiscount={(finalDiscountCents) => update((c) => ({ ...c, finalDiscountCents }))}
             onOpenLine={openIncomplete}
             reporter={reporter}
+          />
+
+          <IssuePanel
+            companyId={companyId}
+            quoteId={quoteId}
+            version={version}
+            content={draft}
+            totals={totals}
+            profile={settings}
+            unsaved={dirty || saving || blocked}
+            revisionNumber={revisionInfo?.label ?? null}
+            onOpenIncomplete={openIncomplete}
+            onIssued={onIssued}
           />
 
           <section className="stack" aria-labelledby="condizioni-title">

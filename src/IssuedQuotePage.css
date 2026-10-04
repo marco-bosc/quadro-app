@@ -1,0 +1,13 @@
+.issued-head { gap: var(--sp-8); }
+.issued-number { color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
+.issued-title { font-size: var(--fs-title); line-height: 1.1; overflow-wrap: anywhere; }
+.issued-total { font-family: var(--font-display); font-weight: 800; font-size: 26px; }
+.issued-section { gap: var(--sp-8); }
+.issued-section .section-title { font-size: 18px; }
+.issued-lines { list-style: none; margin: 0; padding: 0; }
+.issued-lines li { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-10) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.issued-lines li > strong { align-self: flex-end; }
+.issued-line-detail { display: flex; justify-content: space-between; gap: var(--sp-12); font-size: var(--fs-sm); }
+.issued-comment { font-style: italic; color: var(--text-2); }
+a.btn-secondary { color: var(--ink); }
+a.btn-secondary:hover { text-decoration: none; color: var(--ink); }

@@ -18,3 +18,6 @@
   padding: var(--sp-12) var(--gutter); background: var(--bg); border-top: 1px solid var(--line);
 }
 .home-actions > * { max-width: 596px; margin: 0 auto; display: flex; }
+.doc-number { color: var(--accent); font-weight: 700; font-size: var(--fs-xs); }
+.doc-row.superseded { background: transparent; border-style: dashed; }
+.doc-row.superseded .doc-title, .doc-row.superseded .doc-amount, .doc-row.superseded .doc-number { color: var(--text-3); }

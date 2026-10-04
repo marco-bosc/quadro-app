@@ -3,7 +3,7 @@
 Web app per artigiani (prima gli elettricisti): dalla richiesta di preventivo alla gestione delle offerte.
 Istruzioni per l'agente in `CLAUDE.md`; documenti di progetto in `docs/`.
 
-Stato: I01 e I02 chiusi; **I02b in corso** — fatti B1 (emissione e numerazione) e B2 (PDF e archiviazione); da fare B3 (revisioni e interfaccia).
+Stato: I01 e I02 chiusi; **I02b completato** (emissione, numerazione, PDF, revisioni), in attesa di verifica e del deploy di test.
 
 ## Stack
 
@@ -81,7 +81,11 @@ Schermate di riferimento con dati fittizi in `docs/design/screens/`.
 - **Oggi** (`#/`): bozze dalla più recente, con totale o «manca N prezzi».
 - **Editor** (`#/quotes/:id`): cliente, sezioni comprimibili, righe modificate in un pannello a tutto schermo,
   riepilogo con IVA per codice e diciture, condizioni. Salvataggio esplicito con controllo di versione.
-- **Profilo** (`#/settings`): regime fiscale, aliquota predefinita, tariffa oraria, testi predefiniti (solo owner); Esci.
+- **Profilo** (`#/settings`): dati sul preventivo, logo, numerazione, regime fiscale, aliquota predefinita, tariffa oraria,
+  testi predefiniti (solo owner); Esci.
+- **Emissione** (nell'editor): solo con bozza salvata, completa e dati dell'azienda presenti; conferma con numero previsto.
+- **Preventivo emesso** (stesso indirizzo, in sola lettura): Scarica PDF, Condividi (Web Share con il file; se non disponibile
+  «Apri email» con `mailto`), «Crea una versione corretta». Aprire la condivisione non segna il preventivo come inviato.
 
 **Copia locale:** le modifiche non salvate di una bozza vengono copiate nel browser (`localStorage`, per azienda e
 preventivo). Riaprendo la bozza, l'app propone di recuperarle o scartarle; la copia si cancella dopo un salvataggio riuscito.
@@ -96,6 +100,9 @@ In `functions/` (pacchetto separato, Node 22). Regione **europe-west1**, dentro 
   assegna il numero (contatore `companies/{id}/counters/quotes-{anno}`, anno nel fuso Europe/Rome), congela l'istantanea
   (`shared/snapshot.ts`) e porta il preventivo a `issued` con `pdfStatus: "pending"`.
 - `setNextQuoteNumber`: solo owner, solo oltre l'ultimo numero emesso dell'anno.
+- `startRevision` / `discardRevision`: «Correggi» crea una bozza dall'istantanea collegata all'originale (`revisionOf`,
+  una sola aperta: `openRevisionId`); all'emissione prende lo stesso numero con `rev. N` senza toccare il contatore e
+  l'originale diventa `superseded` (`supersededBy`).
 - Dopo l'emissione `issueQuote` genera il PDF (pdfmake, A4, font Instrument Sans e Bricolage Grotesque in `functions/fonts/`)
   solo dall'istantanea e lo salva in `companies/{id}/quotes/{quoteId}/Preventivo_2026-001.pdf`. Se fallisce: `pdfStatus: "error"`,
   il numero resta, e `regenerateQuotePdf` lo rigenera.

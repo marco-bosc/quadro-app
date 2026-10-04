@@ -10,6 +10,10 @@
   background: var(--ink); color: var(--surface); border: none;
   min-height: 54px; padding: 0 var(--sp-22); font-size: var(--fs-body-lg); font-weight: 700;
 }
+.btn-confirm {
+  background: var(--accent); color: var(--surface); border: none;
+  min-height: 54px; padding: 0 var(--sp-22); font-size: var(--fs-body-lg); font-weight: 700;
+}
 .btn-secondary {
   background: transparent; color: var(--ink); border: 1.5px solid var(--line);
   min-height: 50px; padding: 0 var(--sp-18); font-size: var(--fs-sm); font-weight: 600;

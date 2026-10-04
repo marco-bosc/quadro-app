@@ -12,17 +12,30 @@ import {
   Timestamp,
   type Firestore,
 } from 'firebase/firestore';
-import { parseQuoteContent, validateQuoteContent, type QuoteContent, type QuoteStatus } from '../shared/quote';
+import { parseQuoteContent, validateQuoteContent, type QuoteContent } from '../shared/quote';
+import type { PdfStatus, QuoteSnapshot, QuoteStatus } from '../shared/snapshot';
 import type { TaxRegime } from '../shared/vat';
 
 export interface Quote {
   id: string;
+  /** Contenuto della bozza; per un preventivo emesso fa fede `snapshot`. */
   content: QuoteContent;
   status: QuoteStatus;
   version: number;
   createdBy: string;
   createdAt: Date | null;
   updatedAt: Date | null;
+  /** Solo per le bozze di revisione: preventivo corretto e numero di revisione previsto. */
+  revisionOf: string | null;
+  revision: number;
+  /** Solo per i preventivi emessi o sostituiti (scritti dal server). */
+  displayNumber: string | null;
+  issuedAt: Date | null;
+  snapshot: QuoteSnapshot | null;
+  pdfStatus: PdfStatus | null;
+  pdfPath: string | null;
+  openRevisionId: string | null;
+  supersededBy: string | null;
 }
 
 /** Errore di salvataggio con un motivo riconoscibile dall'interfaccia. */
@@ -41,21 +54,34 @@ function quotesCollection(db: Firestore, companyId: string) {
   return collection(db, 'companies', companyId, 'quotes');
 }
 
+function str(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
 function toDate(value: unknown): Date | null {
   return value instanceof Timestamp ? value.toDate() : null;
 }
 
-function toQuote(id: string, data: Record<string, unknown>): Quote {
+export function toQuote(id: string, data: Record<string, unknown>): Quote {
   return {
     id,
     // Le bozze di I01 (solo titolo e note) vengono lette con i campi nuovi vuoti
     // e salvate nel formato nuovo al primo salvataggio.
     content: parseQuoteContent(data),
-    status: 'draft',
+    status: data.status === 'issued' || data.status === 'superseded' ? data.status : 'draft',
     version: typeof data.version === 'number' ? data.version : 0,
-    createdBy: typeof data.createdBy === 'string' ? data.createdBy : '',
+    createdBy: str(data.createdBy) ?? '',
     createdAt: toDate(data.createdAt),
     updatedAt: toDate(data.updatedAt),
+    revisionOf: str(data.revisionOf),
+    revision: typeof data.revision === 'number' ? data.revision : 0,
+    displayNumber: str(data.displayNumber),
+    issuedAt: toDate(data.issuedAt),
+    snapshot: typeof data.snapshot === 'object' && data.snapshot !== null ? (data.snapshot as QuoteSnapshot) : null,
+    pdfStatus: data.pdfStatus === 'pending' || data.pdfStatus === 'ready' || data.pdfStatus === 'error' ? data.pdfStatus : null,
+    pdfPath: str(data.pdfPath),
+    openRevisionId: str(data.openRevisionId),
+    supersededBy: str(data.supersededBy),
   };
 }
 

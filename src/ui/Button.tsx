@@ -1,7 +1,8 @@
 import type { ButtonHTMLAttributes } from 'react';
 import './Button.css';
 
-type Variant = 'primary' | 'secondary' | 'pill' | 'text' | 'icon';
+/** `confirm` (blu) è riservato all'unica azione irreversibile: «Conferma ed emetti» (DESIGN §1). */
+type Variant = 'primary' | 'confirm' | 'secondary' | 'pill' | 'text' | 'icon';
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
