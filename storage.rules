@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// File privati per azienda. L'appartenenza si verifica su Firestore, come nelle regole del database.
+// Nessun link pubblico: l'app scarica i file con l'SDK e le credenziali dell'utente.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function membership() {
+      return firestore.get(/databases/(default)/documents/memberships/$(request.auth.uid)).data;
+    }
+
+    function isMember(companyId) {
+      return request.auth != null && membership().companyId == companyId;
+    }
+
+    function isOwner(companyId) {
+      return isMember(companyId) && membership().role == 'owner';
+    }
+
+    // PDF e copie del logo dei preventivi emessi: scritti solo dal server (SDK admin).
+    match /companies/{companyId}/quotes/{quoteId}/{file=**} {
+      allow read: if isMember(companyId);
+      allow write: if false;
+    }
+
+    // Logo dell'azienda: solo l'owner lo carica o lo rimuove; PNG o JPEG fino a 1 MB.
+    match /companies/{companyId}/branding/logo {
+      allow read: if isMember(companyId);
+      allow create, update: if isOwner(companyId)
+        && request.resource.size <= 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpeg)');
+      allow delete: if isOwner(companyId);
+    }
+  }
+}
