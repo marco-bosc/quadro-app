@@ -3,7 +3,7 @@
 Web app per artigiani (prima gli elettricisti): dalla richiesta di preventivo alla gestione delle offerte.
 Istruzioni per l'agente in `CLAUDE.md`; documenti di progetto in `docs/`.
 
-Stato: I01 chiuso; **I02 in corso** — fatto I02-A (calcoli, modello dati, regole); da fare I02-B (interfaccia dell'editor).
+Stato: I01 chiuso; **I02 completato** (editor del preventivo e calcoli), in attesa di verifica. Prossimo: I02b (emissione e PDF).
 
 ## Stack
 
@@ -70,13 +70,30 @@ alcune sezioni potrebbero non caricarsi perché l'interfaccia chiama direttament
 
 `npm test` usa un emulatore separato (`firebase.test.json`, porta 8180): funziona anche con `npm run dev` acceso.
 
+## Interfaccia
+
+Stile e componenti secondo `docs/DESIGN.md`: token in `src/styles/tokens.css`, font ospitati in `public/fonts/`
+(Bricolage Grotesque e Instrument Sans, licenza OFL, file di licenza nella stessa cartella), componenti in `src/ui/`.
+Schermate di riferimento con dati fittizi in `docs/design/screens/`.
+
+- **Oggi** (`#/`): bozze dalla più recente, con totale o «manca N prezzi».
+- **Editor** (`#/quotes/:id`): cliente, sezioni comprimibili, righe modificate in un pannello a tutto schermo,
+  riepilogo con IVA per codice e diciture, condizioni. Salvataggio esplicito con controllo di versione.
+- **Profilo** (`#/settings`): regime fiscale, aliquota predefinita, tariffa oraria, testi predefiniti (solo owner); Esci.
+
+**Copia locale:** le modifiche non salvate di una bozza vengono copiate nel browser (`localStorage`, per azienda e
+preventivo). Riaprendo la bozza, l'app propone di recuperarle o scartarle; la copia si cancella dopo un salvataggio riuscito.
+Se il browser blocca lo storage, l'app funziona senza copia locale.
+
 ## Struttura
 
 ```
-src/        frontend React (pagine, accesso ai dati in src/quotes.ts)
+src/        frontend React: pagine, editor/ (editor del preventivo), ui/ (componenti), styles/ (token)
+            accesso ai dati in src/quotes.ts e src/settings.ts; copia locale in src/localDraft.ts
 shared/     codice condiviso con il futuro server, senza Firebase né React:
             money.ts (arrotondamento, testo ↔ interi), vat.ts (codici IVA e diciture),
-            quote.ts (modello, limiti, validazione), calc.ts (totali del preventivo)
+            quote.ts (modello, limiti, validazione), calc.ts (totali del preventivo),
+            format.ts (importi, prezzi e quantità per la visualizzazione)
 tests/      test delle regole e del salvataggio con controllo di versione
 scripts/    seed degli emulatori
 firestore.rules, firestore.indexes.json, firebase.json, .firebaserc
