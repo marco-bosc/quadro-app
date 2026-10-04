@@ -52,13 +52,22 @@ export async function issueQuoteHandler(deps: IssueDeps, uid: string, data: unkn
   const counterRef = deps.db.doc(counterPath(companyId, year));
 
   return deps.db.runTransaction(async (tx) => {
-    const [quoteSnap, companySnap, counterSnap] = await Promise.all([tx.get(quoteRef), tx.get(companyRef), tx.get(counterRef)]);
+    const [quoteSnap, companySnap] = await Promise.all([tx.get(quoteRef), tx.get(companyRef)]);
     const quote = quoteSnap.data();
     if (!quote) throw new HttpsError('not-found', 'Preventivo non trovato.');
     if (quote.status !== 'draft') throw precondition('not-draft', 'Il preventivo è già stato emesso.');
     if (quote.version !== version) {
       throw precondition('version-conflict', 'Il preventivo è stato modificato dopo l’apertura: ricaricalo e riprova.');
     }
+
+    // Revisione: stesso numero dell'originale con la revisione successiva, nessun incremento del contatore.
+    const isRevision = typeof quote.revisionOf === 'string';
+    const originalRef = isRevision ? deps.db.doc(`companies/${companyId}/quotes/${quote.revisionOf}`) : null;
+    const original = originalRef ? (await tx.get(originalRef)).data() : undefined;
+    if (originalRef && (original?.status !== 'issued' || original.openRevisionId !== quoteId)) {
+      throw precondition('revision-invalid', 'L’originale di questa revisione non è più correggibile.');
+    }
+    const counterData = isRevision ? undefined : (await tx.get(counterRef)).data();
 
     const settings = parseSettings(companySnap.data()?.settings);
     const missing = missingForIssue(settings);
@@ -92,8 +101,9 @@ export async function issueQuoteHandler(deps: IssueDeps, uid: string, data: unkn
       );
     }
 
-    const sequence = nextSequence(counterSnap.data());
-    const number: QuoteNumber = { year, sequence, revision: 0 };
+    const number: QuoteNumber = original
+      ? { year: original.number.year, sequence: original.number.sequence, revision: quote.revision }
+      : { year, sequence: nextSequence(counterData), revision: 0 };
     const snapshot: QuoteSnapshot = {
       schemaVersion: SNAPSHOT_SCHEMA_VERSION,
       number: { ...number, display: displayQuoteNumber(number), fileName: quoteFileName(number) },
@@ -131,11 +141,15 @@ export async function issueQuoteHandler(deps: IssueDeps, uid: string, data: unkn
       })),
     };
 
-    tx.set(counterRef, { year, lastIssued: sequence, next: sequence + 1, updatedAt: FieldValue.serverTimestamp() });
+    if (originalRef) {
+      tx.update(originalRef, { status: 'superseded', supersededBy: quoteId, openRevisionId: FieldValue.delete() });
+    } else {
+      tx.set(counterRef, { year, lastIssued: number.sequence, next: number.sequence + 1, updatedAt: FieldValue.serverTimestamp() });
+    }
     tx.update(quoteRef, {
       status: 'issued',
-      number: { year, sequence },
-      revision: 0,
+      number: { year: number.year, sequence: number.sequence },
+      revision: number.revision,
       displayNumber: snapshot.number.display,
       issuedAt: Timestamp.fromDate(now),
       issuedBy: uid,

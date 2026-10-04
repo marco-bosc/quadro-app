@@ -11,6 +11,7 @@ import { FUNCTIONS_REGION } from '../../shared/region';
 import { issueQuoteHandler } from './issue';
 import { setNextQuoteNumberHandler } from './numbering';
 import { generateQuotePdf, regenerateQuotePdfHandler } from './pdf/generate';
+import { discardRevisionHandler, startRevisionHandler } from './revisions';
 
 initializeApp();
 // maxInstances limita i costi in caso di traffico anomalo.
@@ -61,4 +62,12 @@ export const setNextQuoteNumber = onCall((request) =>
   guarded('setNextQuoteNumber', () =>
     setNextQuoteNumberHandler({ db: getFirestore(), now: () => new Date() }, requireAuth(request), request.data),
   ),
+);
+
+export const startRevision = onCall((request) =>
+  guarded('startRevision', () => startRevisionHandler({ db: getFirestore() }, requireAuth(request), request.data)),
+);
+
+export const discardRevision = onCall((request) =>
+  guarded('discardRevision', () => discardRevisionHandler({ db: getFirestore() }, requireAuth(request), request.data)),
 );
