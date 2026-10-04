@@ -1,0 +1,106 @@
+.detail-header {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+  padding: var(--sp-8) var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.back-link { display: inline-flex; align-items: center; gap: var(--sp-4); min-height: 44px; }
+
+.editor-fields { border: none; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-28); }
+.editor-fields:disabled { opacity: 0.55; }
+
+.title-field .field-input { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+
+.customer { border-top: 1px solid var(--ink); padding-top: var(--sp-14); }
+
+.two-cols { display: grid; grid-template-columns: 1fr; gap: var(--sp-14); }
+@media (min-width: 480px) {
+  .two-cols { grid-template-columns: 1fr 1fr; }
+}
+/* Nel pannello della riga, quantità/unità e prezzo/sconto restano affiancati anche su telefono. */
+.line-panel .two-cols { grid-template-columns: 1.4fr 1fr; }
+
+.row-wrap { display: flex; flex-wrap: wrap; gap: var(--sp-10); align-items: center; }
+
+/* ---------- Sezioni ---------- */
+
+.quote-section { border-top: 1px solid var(--line); padding-top: var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-14); }
+.section-toggle {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--sp-10);
+  background: none; border: none; padding: var(--sp-8) 0; text-align: left; cursor: pointer; min-height: 44px;
+}
+.section-number { color: var(--accent); font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+.section-title { font-family: var(--font-display); font-weight: 700; font-size: 20px; overflow-wrap: anywhere; }
+.section-subtotal { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.section-actions { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
+.add-buttons { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+
+/* ---------- Righe ---------- */
+
+.line-list { list-style: none; margin: 0; padding: 0; }
+.line-list li + li { border-top: 1px solid var(--line); }
+.line-row {
+  width: 100%; display: flex; flex-direction: column; gap: var(--sp-4);
+  background: none; border: none; padding: var(--sp-12) 0; text-align: left; cursor: pointer; min-height: 44px;
+}
+.line-description { font-size: var(--fs-body); color: var(--ink); overflow-wrap: anywhere; }
+.line-detail { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-12); }
+.line-calc { font-size: var(--fs-sm); color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
+.line-vat { color: var(--text-3); }
+.line-amount { font-size: var(--fs-body); font-weight: 700; white-space: nowrap; }
+.line-row.optional { border-left: 3px dashed var(--line-placeholder); padding-left: var(--sp-12); }
+.line-row.optional .line-amount { color: var(--text-3); font-weight: 600; }
+.line-flag { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: var(--text-3); }
+.line-row.comment {
+  font-style: italic; color: var(--text-2); background: var(--surface-sunken); border-radius: 8px;
+  padding: var(--sp-12) var(--sp-14); margin: var(--sp-8) 0;
+}
+
+
+/* ---------- Pannello della riga ---------- */
+
+.line-panel {
+  border: none; padding: 0; margin: 0;
+  width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+  background: var(--bg); color: var(--ink);
+}
+@media (min-width: 700px) {
+  .line-panel { width: 640px; height: auto; max-height: 90vh; margin: auto; border-radius: var(--radius); }
+}
+.line-panel::backdrop { background: rgb(27 36 51 / 0.45); }
+.line-panel-header {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; justify-content: space-between; align-items: center; gap: var(--sp-12);
+  padding: var(--sp-12) var(--gutter); background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.line-panel-body { padding: var(--sp-18) var(--gutter) calc(var(--sp-28) + var(--safe-bottom)); }
+.line-panel-amount { font-size: var(--fs-body); }
+.line-panel-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding-top: var(--sp-8); border-top: 1px solid var(--line); }
+
+.checkbox { display: flex; gap: var(--sp-10); align-items: flex-start; min-height: 44px; font-weight: 600; cursor: pointer; }
+.checkbox input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--ink); flex-shrink: 0; }
+
+/* ---------- Riepilogo ---------- */
+
+.totals { border-top: 1px solid var(--ink); padding-top: var(--sp-16); }
+.totals-table { margin: 0; display: flex; flex-direction: column; gap: var(--sp-8); }
+.totals-table div { display: flex; justify-content: space-between; gap: var(--sp-12); }
+.totals-table dt { color: var(--text-2); }
+.totals-table dd { margin: 0; font-weight: 600; white-space: nowrap; text-align: right; }
+.totals-total { border-top: 1px solid var(--ink); padding-top: var(--sp-10); margin-top: var(--sp-4); }
+.totals-total dt { font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--ink); }
+.totals-total dd { font-family: var(--font-display); font-weight: 800; font-size: 22px; white-space: normal; }
+.totals-total dd .missing { font-family: var(--font-body); font-size: var(--fs-body); }
+
+.incomplete ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.link-button {
+  background: none; border: none; padding: var(--sp-8) 0; min-height: 44px; text-align: left;
+  color: var(--accent); font-weight: 600; cursor: pointer;
+}
+.legends { padding-top: var(--sp-8); border-top: 1px solid var(--line); color: var(--text-2); }
+
+.savebar-total { display: flex; align-items: center; gap: var(--sp-10); font-size: var(--fs-sm); }
+.savebar-total > span:first-child { color: var(--text-3); font-weight: 600; }
+.savebar-total .num { flex: 1; min-width: 0; }
+.savebar-total strong { font-size: var(--fs-body-lg); }
+
+ul.notice { margin: 0; padding-left: var(--sp-28); }
