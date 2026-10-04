@@ -1,0 +1,9 @@
+{
+  "name": "quadro",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "21" }
+  },
+  "postCreateCommand": "npm install -g firebase-tools && curl -fsSL https://claude.ai/install.sh | bash",
+  "forwardPorts": [5173, 4000, 9099, 8080, 5001, 9199]
+}
