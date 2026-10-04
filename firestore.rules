@@ -38,18 +38,33 @@ service cloud.firestore {
     }
 
     // ---------- Impostazioni dell'azienda ----------
+    // Limiti allineati a shared/company.ts (COMPANY_LIMITS) e shared/quote.ts.
+
+    function settingsKeys() {
+      return ['taxRegime', 'defaultVatCode', 'hourlyRate', 'defaultValidityText', 'defaultPaymentTermsText', 'version',
+              'legalName', 'vatNumber', 'taxCode', 'address', 'phone', 'email', 'website', 'signerName'];
+    }
 
     function validSettings(s) {
       return s is map
-        && s.keys().hasOnly(['taxRegime', 'defaultVatCode', 'hourlyRate', 'defaultValidityText', 'defaultPaymentTermsText', 'version'])
-        && s.keys().hasAll(['taxRegime', 'defaultVatCode', 'hourlyRate', 'defaultValidityText', 'defaultPaymentTermsText', 'version'])
+        && s.keys().hasOnly(settingsKeys())
+        && s.keys().hasAll(settingsKeys())
         && s.taxRegime in ['ordinary', 'flat_rate']
         && isVatCode(s.defaultVatCode)
         && ((s.taxRegime == 'flat_rate') == (s.defaultVatCode == 'FORF'))
         && (s.hourlyRate == null || isIntInRange(s.hourlyRate, 9999999999))
         && isText(s.defaultValidityText, 500)
         && isText(s.defaultPaymentTermsText, 1000)
-        && s.version is int;
+        && s.version is int
+        && isText(s.legalName, 200)
+        // Il carattere di controllo della partita IVA è verificato dal client e dal server all'emissione.
+        && s.vatNumber is string && s.vatNumber.matches('^([0-9]{11})?$')
+        && s.taxCode is string && s.taxCode.matches('^([A-Z0-9]{16}|[0-9]{11})?$')
+        && isText(s.address, 300)
+        && isText(s.phone, 50)
+        && isText(s.email, 200)
+        && isText(s.website, 200)
+        && isText(s.signerName, 200);
     }
 
     // Controllo di versione anche sulle impostazioni: si parte da 1, poi +1 a ogni salvataggio.
@@ -70,13 +85,21 @@ service cloud.firestore {
         && isText(c.contact, 200);
     }
 
+    // Campi del contenuto modificabili dal client finché il preventivo è una bozza.
+    function contentKeys() {
+      return ['title', 'notes', 'customer', 'validityText', 'paymentTermsText', 'defaultVatCode',
+              'finalDiscountCents', 'pdfDetail', 'sections'];
+    }
+
+    function baseKeys() {
+      return ['status', 'version', 'createdBy', 'createdAt', 'updatedAt'];
+    }
+
+    // Una bozza può avere in più solo i riferimenti di revisione, scritti dal server.
+    // Numero, istantanea, stato del PDF ecc. esistono solo sui preventivi emessi, che il client non modifica.
     function validQuoteFields(data) {
-      return data.keys().hasOnly(['title', 'notes', 'customer', 'validityText', 'paymentTermsText', 'defaultVatCode',
-                                  'finalDiscountCents', 'pdfDetail', 'sections',
-                                  'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
-        && data.keys().hasAll(['title', 'notes', 'customer', 'validityText', 'paymentTermsText', 'defaultVatCode',
-                               'finalDiscountCents', 'pdfDetail', 'sections',
-                               'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
+      return data.keys().hasOnly(contentKeys().concat(baseKeys()).concat(['revisionOf', 'revision']))
+        && data.keys().hasAll(contentKeys().concat(baseKeys()))
         && isText(data.title, 200)
         && isText(data.notes, 5000)
         && validCustomer(data.customer)
@@ -110,23 +133,32 @@ service cloud.firestore {
       match /quotes/{quoteId} {
         allow read: if isMember(companyId);
 
+        // Il client crea solo bozze nuove, senza campi riservati al server.
         allow create: if isMember(companyId)
           && validQuoteFields(request.resource.data)
+          && request.resource.data.keys().hasOnly(contentKeys().concat(baseKeys()))
           && request.resource.data.version == 1
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.createdAt == request.time
           && request.resource.data.updatedAt == request.time;
 
-        // Controllo di versione anche lato server: ogni salvataggio deve partire
-        // dalla versione attuale, così non si sovrascrive mai una versione più recente.
+        // Solo le bozze si modificano, e solo nel contenuto. Stato, autore, date di creazione,
+        // riferimenti di revisione restano invariati; emessi e sostituiti sono in sola lettura.
+        // Controllo di versione anche lato server: ogni salvataggio parte dalla versione attuale.
         allow update: if isMember(companyId)
+          && resource.data.status == 'draft'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(contentKeys().concat(['version', 'updatedAt']))
           && validQuoteFields(request.resource.data)
           && request.resource.data.version == resource.data.version + 1
-          && request.resource.data.createdBy == resource.data.createdBy
-          && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.updatedAt == request.time;
 
         allow delete: if false;
+      }
+
+      // Contatori della numerazione: leggibili per mostrare il prossimo numero, scritti solo dal server.
+      match /counters/{counterId} {
+        allow read: if isMember(companyId);
+        allow write: if false;
       }
     }
   }
