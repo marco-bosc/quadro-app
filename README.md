@@ -3,7 +3,7 @@
 Web app per artigiani (prima gli elettricisti): dalla richiesta di preventivo alla gestione delle offerte.
 Istruzioni per l'agente in `CLAUDE.md`; documenti di progetto in `docs/`.
 
-Stato: **I01 — Base funzionante** (accesso, bozze minime, isolamento tra aziende).
+Stato: I01 chiuso; **I02 in corso** — fatto I02-A (calcoli, modello dati, regole); da fare I02-B (interfaccia dell'editor).
 
 ## Stack
 
@@ -68,26 +68,43 @@ alcune sezioni potrebbero non caricarsi perché l'interfaccia chiama direttament
 | `npm run test:rules` | Solo i test delle Security Rules |
 | `npm run check` | Lint, typecheck, build e test |
 
-`npm test` avvia un proprio emulatore sulle stesse porte: chiudi prima `npm run dev`.
+`npm test` usa un emulatore separato (`firebase.test.json`, porta 8180): funziona anche con `npm run dev` acceso.
 
 ## Struttura
 
 ```
 src/        frontend React (pagine, accesso ai dati in src/quotes.ts)
-shared/     tipi e validazione condivisi (limiti allineati a firestore.rules)
+shared/     codice condiviso con il futuro server, senza Firebase né React:
+            money.ts (arrotondamento, testo ↔ interi), vat.ts (codici IVA e diciture),
+            quote.ts (modello, limiti, validazione), calc.ts (totali del preventivo)
 tests/      test delle regole e del salvataggio con controllo di versione
 scripts/    seed degli emulatori
 firestore.rules, firestore.indexes.json, firebase.json, .firebaserc
 ```
 
-## Modello dati (I01)
+## Modello dati
 
-- `memberships/{uid}` → `{ companyId, role: "owner", createdAt }` — scritta solo dagli script di amministrazione.
-- `companies/{companyId}` → `{ name, createdAt }`
-- `companies/{companyId}/quotes/{quoteId}` → `{ title, notes, status: "draft", version, createdBy, createdAt, updatedAt }`
+- `memberships/{uid}` → `{ companyId, role, createdAt }` — scritta solo dagli script di amministrazione.
+- `companies/{companyId}` → `{ name, createdAt, settings }`; `settings` = `{ taxRegime, defaultVatCode, hourlyRate,
+  defaultValidityText, defaultPaymentTermsText, version }`, modificabile solo dal ruolo `owner`.
+- `companies/{companyId}/quotes/{quoteId}` → `{ title, notes, customer, validityText, paymentTermsText, defaultVatCode,
+  finalDiscountCents, pdfDetail, sections, status: "draft", version, createdBy, createdAt, updatedAt }`.
+  Sezioni e righe sono incorporate nel documento, così il controllo di versione resta unico. Le bozze non salvano totali:
+  si calcolano con `shared/calc.ts`. Le bozze di I01 si aprono con i campi nuovi vuoti e passano al formato nuovo al primo salvataggio.
 
-Il salvataggio usa una transazione sul campo `version`; anche le regole accettano un aggiornamento
-solo se `version` cresce esattamente di 1, quindi una versione più recente non viene mai sovrascritta.
+**Interi, mai decimali:** importi in centesimi, prezzi unitari in decimillesimi di euro, quantità in millesimi,
+sconti in centesimi di punto (10% = 1000). Un prezzo o una quantità non inseriti sono `null`, mai 0.
+
+**Limiti** (`LIMITS` in `shared/quote.ts`): 30 sezioni, 300 righe; quantità fino a 99.999,999; prezzo fino a 999.999,9999 €;
+oggetto 200 caratteri, note 5000, descrizione riga 1000, codice articolo 50, cliente 200, luogo 300, contatto 200,
+validità 500, condizioni di pagamento 1000. Con questi limiti i totali restano interi sicuri in JavaScript.
+
+**Controllo di versione:** bozze e impostazioni si salvano in una transazione sul campo `version`; anche le regole
+accettano un aggiornamento solo se `version` cresce esattamente di 1, quindi una versione più recente non viene mai sovrascritta.
+
+**Limite delle regole:** le Security Rules non hanno cicli, quindi validano i campi di primo livello e il numero di sezioni,
+ma non i campi delle singole righe. Questi li valida `shared/quote.ts` prima del salvataggio; il server li rivaliderà
+all'emissione (I02b).
 
 ## Progetti Firebase
 
