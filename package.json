@@ -13,7 +13,8 @@
     "build:functions": "npm --prefix functions run build",
     "test": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore,storage \"vitest run\"",
     "test:rules": "firebase emulators:exec --config firebase.test.json --project demo-quadro --only firestore,storage \"vitest run tests/rules\"",
-    "check": "npm run lint && npm run typecheck && npm run build && npm run build:functions && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run build && npm run build:functions && npm run test",
+    "deploy:test": "tsx scripts/check-deploy-env.ts && npm run check && vite build --mode firebase-test && firebase deploy --project test --only functions,firestore,storage,hosting"
   },
   "dependencies": {
     "firebase": "^12.19.0",

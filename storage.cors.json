@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://quadro-app-test.web.app", "https://quadro-app-test.firebaseapp.com"],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]
