@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Ogni dato appartiene a un'azienda. L'accesso passa sempre da memberships/{uid},
+// che solo gli script di amministrazione possono scrivere.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(companyId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.companyId == companyId;
+    }
+
+    // Limiti allineati a shared/quote.ts
+    function validQuoteFields(data) {
+      return data.keys().hasOnly(['title', 'notes', 'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['title', 'notes', 'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() <= 200
+        && data.notes is string && data.notes.size() <= 5000
+        && data.status == 'draft'
+        && data.version is int
+        && data.createdBy is string
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /memberships/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /companies/{companyId} {
+      allow read: if isMember(companyId);
+      allow write: if false;
+
+      match /quotes/{quoteId} {
+        allow read: if isMember(companyId);
+
+        allow create: if isMember(companyId)
+          && validQuoteFields(request.resource.data)
+          && request.resource.data.version == 1
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+
+        // Controllo di versione anche lato server: ogni salvataggio deve partire
+        // dalla versione attuale, così non si sovrascrive mai una versione più recente.
+        allow update: if isMember(companyId)
+          && validQuoteFields(request.resource.data)
+          && request.resource.data.version == resource.data.version + 1
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedAt == request.time;
+
+        allow delete: if false;
+      }
+    }
+  }
+}
